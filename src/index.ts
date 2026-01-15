@@ -2,10 +2,10 @@ import { serve } from "bun";
 import index from "./index.html";
 
 // Static files for PWA
-const manifest = Bun.file("public/manifest.json");
-const sw = Bun.file("public/sw.js");
-const icon192 = Bun.file("public/icon-192.svg");
-const icon512 = Bun.file("public/icon-512.svg");
+const manifest = Bun.file("src/manifest.json");
+const sw = Bun.file("src/sw.js");
+const icon192 = Bun.file("src/icon-192.svg");
+const icon512 = Bun.file("src/icon-512.svg");
 
 // Initialize database
 import { getDB } from "./db";

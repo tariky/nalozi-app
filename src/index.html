@@ -12,28 +12,44 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="AS-NORD" />
 
-    <!-- Icons -->
-    <link rel="icon" type="image/svg+xml" href="/icon-192.svg" />
-    <link rel="apple-touch-icon" href="/icon-192.svg" />
-
-    <!-- Manifest -->
-    <link rel="manifest" href="/manifest.json" />
-
     <title>AS-NORD Nalozi</title>
     <script type="module" src="./frontend.tsx" async></script>
   </head>
   <body>
     <div id="root"></div>
 
-    <!-- Service Worker Registration -->
+    <!-- PWA Setup -->
     <script>
+      // Dynamically add PWA links to avoid bundler issues
+      (function() {
+        // Add manifest
+        var manifest = document.createElement('link');
+        manifest.rel = 'manifest';
+        manifest.href = '/manifest.json';
+        document.head.appendChild(manifest);
+
+        // Add icon
+        var icon = document.createElement('link');
+        icon.rel = 'icon';
+        icon.type = 'image/svg+xml';
+        icon.href = '/icon-192.svg';
+        document.head.appendChild(icon);
+
+        // Add apple touch icon
+        var appleIcon = document.createElement('link');
+        appleIcon.rel = 'apple-touch-icon';
+        appleIcon.href = '/icon-192.svg';
+        document.head.appendChild(appleIcon);
+      })();
+
+      // Service Worker Registration
       if ('serviceWorker' in navigator) {
-        window.addEventListener('load', () => {
+        window.addEventListener('load', function() {
           navigator.serviceWorker.register('/sw.js')
-            .then((registration) => {
+            .then(function(registration) {
               console.log('SW registered:', registration.scope);
             })
-            .catch((error) => {
+            .catch(function(error) {
               console.log('SW registration failed:', error);
             });
         });
