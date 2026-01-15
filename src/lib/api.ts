@@ -1,0 +1,242 @@
+// API client functions
+
+import type {
+  Mechanic,
+  MechanicForm,
+  Customer,
+  CustomerForm,
+  Vehicle,
+  VehicleForm,
+  WorkOrder,
+  WorkOrderForm,
+  WorkOrderItem,
+  WorkOrderItemForm,
+  TimeEntry,
+  ApiResponse,
+  PaginatedResponse,
+  SalesData,
+  MechanicStats,
+  AuthUser,
+  UserForm,
+} from '../types';
+
+const API_BASE = '/api';
+
+async function fetchApi<T>(
+  endpoint: string,
+  options?: RequestInit
+): Promise<ApiResponse<T>> {
+  try {
+    const response = await fetch(`${API_BASE}${endpoint}`, {
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      ...options,
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      return { success: false, error: error.message || 'Greška na serveru' };
+    }
+
+    const data = await response.json();
+    return { success: true, data };
+  } catch (error) {
+    return { success: false, error: 'Greška u komunikaciji sa serverom' };
+  }
+}
+
+// Mechanics API
+export const mechanicsApi = {
+  getAll: () => fetchApi<Mechanic[]>('/mechanics'),
+
+  getById: (id: number) => fetchApi<Mechanic>(`/mechanics/${id}`),
+
+  create: (data: MechanicForm) =>
+    fetchApi<Mechanic>('/mechanics', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
+  update: (id: number, data: MechanicForm) =>
+    fetchApi<Mechanic>(`/mechanics/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }),
+
+  delete: (id: number) =>
+    fetchApi<void>(`/mechanics/${id}`, { method: 'DELETE' }),
+};
+
+// Customers API
+export const customersApi = {
+  getAll: (page = 1, limit = 20, search?: string) => {
+    const params = new URLSearchParams({ page: String(page), limit: String(limit) });
+    if (search) params.set('search', search);
+    return fetchApi<PaginatedResponse<Customer>>(`/customers?${params}`);
+  },
+
+  getById: (id: number) => fetchApi<Customer>(`/customers/${id}`),
+
+  create: (data: CustomerForm) =>
+    fetchApi<Customer>('/customers', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
+  update: (id: number, data: CustomerForm) =>
+    fetchApi<Customer>(`/customers/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }),
+};
+
+// Vehicles API
+export const vehiclesApi = {
+  getByCustomer: (customerId: number) =>
+    fetchApi<Vehicle[]>(`/vehicles/by-customer/${customerId}`),
+
+  getById: (id: number) => fetchApi<Vehicle>(`/vehicles/${id}`),
+
+  checkVin: (vin: string) =>
+    fetchApi<{ exists: boolean; vehicle?: Vehicle & { customer?: { id: number; ime: string; prezime: string } } }>(`/vehicles/check-vin/${encodeURIComponent(vin)}`),
+
+  create: (data: VehicleForm) =>
+    fetchApi<Vehicle>('/vehicles', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
+  update: (id: number, data: Partial<VehicleForm>) =>
+    fetchApi<Vehicle>(`/vehicles/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }),
+
+  delete: (id: number) =>
+    fetchApi<void>(`/vehicles/${id}`, { method: 'DELETE' }),
+};
+
+// Work Orders API
+export const workOrdersApi = {
+  getAll: (page = 1, limit = 20, filters?: { status?: string }) => {
+    const params = new URLSearchParams({ page: String(page), limit: String(limit) });
+    if (filters?.status) params.set('status', filters.status);
+    return fetchApi<PaginatedResponse<WorkOrder>>(`/work-orders?${params}`);
+  },
+
+  getById: (id: number) => fetchApi<WorkOrder>(`/work-orders/${id}`),
+
+  create: (data: WorkOrderForm) =>
+    fetchApi<WorkOrder>('/work-orders', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
+  update: (id: number, data: Partial<WorkOrderForm>) =>
+    fetchApi<WorkOrder>(`/work-orders/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }),
+
+  delete: (id: number) =>
+    fetchApi<void>(`/work-orders/${id}`, { method: 'DELETE' }),
+
+  search: (query: string) =>
+    fetchApi<WorkOrder[]>(`/work-orders/search?q=${encodeURIComponent(query)}`),
+};
+
+// Work Order Items API
+export const workOrderItemsApi = {
+  add: (workOrderId: number, data: WorkOrderItemForm) =>
+    fetchApi<WorkOrderItem>(`/work-orders/${workOrderId}/items`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
+  update: (workOrderId: number, itemId: number, data: WorkOrderItemForm) =>
+    fetchApi<WorkOrderItem>(`/work-orders/${workOrderId}/items/${itemId}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }),
+
+  delete: (workOrderId: number, itemId: number) =>
+    fetchApi<void>(`/work-orders/${workOrderId}/items/${itemId}`, {
+      method: 'DELETE',
+    }),
+};
+
+// Time Entries API
+export const timeEntriesApi = {
+  getByWorkOrder: (workOrderId: number) =>
+    fetchApi<TimeEntry[]>(`/work-orders/${workOrderId}/time-entries`),
+
+  start: (workOrderId: number, mechanicId?: number) =>
+    fetchApi<TimeEntry>(`/work-orders/${workOrderId}/time-entries/start`, {
+      method: 'POST',
+      body: JSON.stringify({ mechanic_id: mechanicId }),
+    }),
+
+  stop: (workOrderId: number) =>
+    fetchApi<TimeEntry>(`/work-orders/${workOrderId}/time-entries/stop`, {
+      method: 'POST',
+    }),
+
+  delete: (workOrderId: number, entryId: number) =>
+    fetchApi<void>(`/work-orders/${workOrderId}/time-entries/${entryId}`, {
+      method: 'DELETE',
+    }),
+};
+
+// Analytics API
+export const analyticsApi = {
+  getSales: (from?: string, to?: string, tip?: string) => {
+    const params = new URLSearchParams();
+    if (from) params.set('from', from);
+    if (to) params.set('to', to);
+    if (tip) params.set('tip', tip);
+    return fetchApi<SalesData[]>(`/analytics/sales?${params}`);
+  },
+
+  getMechanicStats: (from?: string, to?: string, mechanicId?: number) => {
+    const params = new URLSearchParams();
+    if (from) params.set('from', from);
+    if (to) params.set('to', to);
+    if (mechanicId) params.set('mechanic_id', String(mechanicId));
+    return fetchApi<MechanicStats[]>(`/analytics/mechanics?${params}`);
+  },
+};
+
+// Auth API
+export const authApi = {
+  login: (username: string, password: string) =>
+    fetchApi<AuthUser>('/auth/login', {
+      method: 'POST',
+      body: JSON.stringify({ username, password }),
+    }),
+
+  logout: () =>
+    fetchApi<void>('/auth/logout', { method: 'POST' }),
+
+  me: () => fetchApi<AuthUser>('/auth/me'),
+};
+
+// Users API
+export const usersApi = {
+  getAll: () => fetchApi<AuthUser[]>('/users'),
+
+  create: (data: UserForm) =>
+    fetchApi<AuthUser>('/users', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
+  delete: (id: number) =>
+    fetchApi<void>(`/users/${id}`, { method: 'DELETE' }),
+
+  changePassword: (id: number, password: string) =>
+    fetchApi<void>(`/users/${id}/password`, {
+      method: 'PUT',
+      body: JSON.stringify({ password }),
+    }),
+};
