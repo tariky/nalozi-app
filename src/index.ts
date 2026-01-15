@@ -1,6 +1,12 @@
 import { serve } from "bun";
 import index from "./index.html";
 
+// Static files for PWA
+const manifest = Bun.file("public/manifest.json");
+const sw = Bun.file("public/sw.js");
+const icon192 = Bun.file("public/icon-192.svg");
+const icon512 = Bun.file("public/icon-512.svg");
+
 // Initialize database
 import { getDB } from "./db";
 getDB(); // Creates tables on startup
@@ -175,6 +181,28 @@ const server = serve({
     },
     "/api/users/:id/password": {
       PUT: changePassword,
+    },
+
+    // PWA Static Files
+    "/manifest.json": {
+      GET: () => new Response(manifest, {
+        headers: { "Content-Type": "application/manifest+json" },
+      }),
+    },
+    "/sw.js": {
+      GET: () => new Response(sw, {
+        headers: { "Content-Type": "application/javascript" },
+      }),
+    },
+    "/icon-192.svg": {
+      GET: () => new Response(icon192, {
+        headers: { "Content-Type": "image/svg+xml" },
+      }),
+    },
+    "/icon-512.svg": {
+      GET: () => new Response(icon512, {
+        headers: { "Content-Type": "image/svg+xml" },
+      }),
     },
 
     // Serve index.html for all unmatched routes (SPA fallback)
