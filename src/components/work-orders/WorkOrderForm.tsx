@@ -14,6 +14,7 @@ import {
 import { CustomerSelect } from "@/components/customers/CustomerSelect";
 import { VehicleSelect } from "@/components/vehicles/VehicleSelect";
 import { workOrdersApi, mechanicsApi, vehiclesApi } from "@/lib/api";
+import { useAuth } from "@/contexts/AuthContext";
 import type { WorkOrder, WorkOrderForm as WorkOrderFormData, Mechanic, Customer, Vehicle } from "@/types";
 
 interface WorkOrderFormProps {
@@ -23,6 +24,7 @@ interface WorkOrderFormProps {
 }
 
 export function WorkOrderForm({ workOrderId, onBack, onSaved }: WorkOrderFormProps) {
+  const { user, isAdmin, isMechanic } = useAuth();
   const [mechanics, setMechanics] = useState<Mechanic[]>([]);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -32,6 +34,9 @@ export function WorkOrderForm({ workOrderId, onBack, onSaved }: WorkOrderFormPro
   const [vinWarning, setVinWarning] = useState<{ message: string; vehicle?: Vehicle & { customer?: { id: number; ime: string; prezime: string } } } | null>(null);
   const [checkingVin, setCheckingVin] = useState(false);
 
+  // Pre-fill mechanic_id for mechanic users when creating new work order
+  const initialMechanicId = !workOrderId && isMechanic && user?.mechanic_id ? user.mechanic_id : undefined;
+
   const [formData, setFormData] = useState<WorkOrderFormData>({
     customer_id: 0,
     registarske_tablice: "",
@@ -39,7 +44,7 @@ export function WorkOrderForm({ workOrderId, onBack, onSaved }: WorkOrderFormPro
     marka_vozila: "",
     model_vozila: "",
     motor: "",
-    mechanic_id: undefined,
+    mechanic_id: initialMechanicId,
     napomena: "",
     status: "otvoren",
   });
@@ -112,6 +117,13 @@ export function WorkOrderForm({ workOrderId, onBack, onSaved }: WorkOrderFormPro
     const upperVin = vin.toUpperCase();
     setFormData({ ...formData, vin_broj: upperVin });
   };
+
+  // Pre-fill mechanic for mechanic users when creating new work order
+  useEffect(() => {
+    if (!workOrderId && isMechanic && user?.mechanic_id && !formData.mechanic_id) {
+      setFormData(prev => ({ ...prev, mechanic_id: user.mechanic_id! }));
+    }
+  }, [workOrderId, isMechanic, user?.mechanic_id]);
 
   // Debounced VIN check
   useEffect(() => {
@@ -350,27 +362,37 @@ export function WorkOrderForm({ workOrderId, onBack, onSaved }: WorkOrderFormPro
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>Mehaničar</Label>
-              <Select
-                value={formData.mechanic_id?.toString() || "none"}
-                onValueChange={(v) =>
-                  setFormData({
-                    ...formData,
-                    mechanic_id: v === "none" ? undefined : parseInt(v),
-                  })
-                }
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Odaberi mehaničara" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">Nije dodijeljen</SelectItem>
-                  {mechanics.map((m) => (
-                    <SelectItem key={m.id} value={m.id.toString()}>
-                      {m.ime} {m.prezime}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              {isMechanic ? (
+                // Mechanics see their name as read-only
+                <Input
+                  value={user?.mechanic ? `${user.mechanic.ime} ${user.mechanic.prezime}` : "Vi"}
+                  disabled
+                  className="bg-gray-50"
+                />
+              ) : (
+                // Admins can select any mechanic
+                <Select
+                  value={formData.mechanic_id?.toString() || "none"}
+                  onValueChange={(v) =>
+                    setFormData({
+                      ...formData,
+                      mechanic_id: v === "none" ? undefined : parseInt(v),
+                    })
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Odaberi mehaničara" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Nije dodijeljen</SelectItem>
+                    {mechanics.map((m) => (
+                      <SelectItem key={m.id} value={m.id.toString()}>
+                        {m.ime} {m.prezime}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
             </div>
 
             <div className="space-y-2">
