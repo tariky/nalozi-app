@@ -20,7 +20,9 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card, PageHeader } from "@/components/layout/PageContainer";
 import { WorkOrderSearch } from "./WorkOrderSearch";
+import { SalesOverview } from "@/components/analytics/SalesOverview";
 import { workOrdersApi } from "@/lib/api";
+import { useAuth } from "@/contexts/AuthContext";
 import { formatDate, formatCurrency, getStatusLabel, getStatusColor, formatDuration } from "@/lib/formatters";
 import type { WorkOrder, PaginatedResponse } from "@/types";
 
@@ -32,6 +34,7 @@ interface WorkOrderListProps {
 }
 
 export function WorkOrderList({ onNew, onView, onEdit, onPrintPDF }: WorkOrderListProps) {
+  const { isAdmin } = useAuth();
   const [data, setData] = useState<PaginatedResponse<WorkOrder> | null>(null);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
@@ -74,6 +77,9 @@ export function WorkOrderList({ onNew, onView, onEdit, onPrintPDF }: WorkOrderLi
           </Button>
         }
       />
+
+      {/* Admin Sales Overview */}
+      {isAdmin && <SalesOverview />}
 
       {/* Search & Filters */}
       <div className="flex flex-col sm:flex-row gap-3">
