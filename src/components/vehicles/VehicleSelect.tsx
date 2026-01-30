@@ -47,9 +47,11 @@ export function VehicleSelect({ customerId, value, onChange }: VehicleSelectProp
   useEffect(() => {
     if (customerId) {
       loadVehicles();
-      // Reset selection when customer changes
+      // Reset internal selection when customer changes
+      // Note: Don't call onChange(null) here - the parent handles clearing
+      // vehicle fields in handleCustomerChange. Calling onChange here breaks
+      // the edit flow where formData is already populated.
       setSelectedVehicle(null);
-      onChange(null);
     } else {
       setVehicles([]);
       setSelectedVehicle(null);

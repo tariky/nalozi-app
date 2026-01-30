@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { ArrowLeft, Pencil, FileDown, Trash2, CheckCircle } from "lucide-react";
+import { ArrowLeft, Pencil, FileDown, Trash2, CheckCircle, Wrench, StickyNote } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
@@ -134,6 +134,34 @@ export function WorkOrderDetail({
         </div>
       </div>
 
+      {/* Required Work & Notes Alert */}
+      {(workOrder.opis_kvara || workOrder.napomena) && (
+        <div className="space-y-2">
+          {workOrder.opis_kvara && (
+            <div className="bg-blue-50 border-l-4 border-blue-500 p-3 sm:p-4 rounded-r-lg">
+              <div className="flex items-start gap-3">
+                <Wrench className="h-5 w-5 text-blue-600 shrink-0 mt-0.5" />
+                <div className="min-w-0">
+                  <p className="text-sm font-medium text-blue-800">Traženi posao</p>
+                  <p className="text-sm text-blue-700 whitespace-pre-wrap mt-1">{workOrder.opis_kvara}</p>
+                </div>
+              </div>
+            </div>
+          )}
+          {workOrder.napomena && (
+            <div className="bg-amber-50 border-l-4 border-amber-500 p-3 sm:p-4 rounded-r-lg">
+              <div className="flex items-start gap-3">
+                <StickyNote className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
+                <div className="min-w-0">
+                  <p className="text-sm font-medium text-amber-800">Napomena</p>
+                  <p className="text-sm text-amber-700 whitespace-pre-wrap mt-1">{workOrder.napomena}</p>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Mobile: Compact combined info */}
       <div className="sm:hidden bg-white rounded-lg shadow-sm p-3 space-y-3">
         {/* Customer row */}
@@ -190,19 +218,6 @@ export function WorkOrderDetail({
           </div>
         </div>
 
-        {workOrder.opis_kvara && (
-          <div className="text-sm">
-            <span className="text-xs text-gray-500">Opis kvara / Traženi posao</span>
-            <p className="text-gray-700 whitespace-pre-wrap">{workOrder.opis_kvara}</p>
-          </div>
-        )}
-
-        {workOrder.napomena && (
-          <div className="text-sm">
-            <span className="text-xs text-gray-500">Napomena</span>
-            <p className="text-gray-700 whitespace-pre-wrap">{workOrder.napomena}</p>
-          </div>
-        )}
       </div>
 
       {/* Desktop: Customer & Vehicle Info */}
@@ -270,29 +285,15 @@ export function WorkOrderDetail({
         </div>
       </div>
 
-      {/* Desktop: Mechanic, Job Description & Notes */}
+      {/* Desktop: Mechanic */}
       <div className="hidden sm:block bg-white rounded-xl shadow-sm p-6">
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-          <div>
-            <span className="text-sm text-gray-500">Mehaničar</span>
-            <p className="font-medium">
-              {workOrder.mechanic
-                ? `${workOrder.mechanic.ime} ${workOrder.mechanic.prezime}`
-                : "Nije dodijeljen"}
-            </p>
-          </div>
-          {workOrder.opis_kvara && (
-            <div className="sm:col-span-2">
-              <span className="text-sm text-gray-500">Opis kvara / Traženi posao</span>
-              <p className="font-medium whitespace-pre-wrap">{workOrder.opis_kvara}</p>
-            </div>
-          )}
-          {workOrder.napomena && (
-            <div className="sm:col-span-2">
-              <span className="text-sm text-gray-500">Napomena</span>
-              <p className="font-medium whitespace-pre-wrap">{workOrder.napomena}</p>
-            </div>
-          )}
+        <div>
+          <span className="text-sm text-gray-500">Mehaničar</span>
+          <p className="font-medium">
+            {workOrder.mechanic
+              ? `${workOrder.mechanic.ime} ${workOrder.mechanic.prezime}`
+              : "Nije dodijeljen"}
+          </p>
         </div>
       </div>
 
