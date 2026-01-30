@@ -222,10 +222,10 @@ export async function createWorkOrder(req: Request): Promise<Response> {
   const brojNaloga = generateWorkOrderNumber();
   const createdAt = new Date().toISOString();
 
-  const result = db.query<{ id: number }, [string, number, string, string | null, string, string, string | null, number | null, string | null, string, string]>(
+  const result = db.query<{ id: number }, [string, number, string, string | null, string, string, string | null, number | null, string | null, string | null, string, string]>(
     `INSERT INTO work_orders
-     (broj_naloga, customer_id, registarske_tablice, vin_broj, marka_vozila, model_vozila, motor, mechanic_id, napomena, status, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`
+     (broj_naloga, customer_id, registarske_tablice, vin_broj, marka_vozila, model_vozila, motor, mechanic_id, opis_kvara, napomena, status, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`
   ).get(
     brojNaloga,
     data.customer_id,
@@ -235,6 +235,7 @@ export async function createWorkOrder(req: Request): Promise<Response> {
     data.model_vozila,
     data.motor || null,
     data.mechanic_id || null,
+    data.opis_kvara || null,
     data.napomena || null,
     data.status || 'otvoren',
     createdAt
@@ -292,6 +293,10 @@ export async function updateWorkOrder(req: Request): Promise<Response> {
   if (data.mechanic_id !== undefined) {
     updates.push('mechanic_id = ?');
     values.push(data.mechanic_id || null);
+  }
+  if (data.opis_kvara !== undefined) {
+    updates.push('opis_kvara = ?');
+    values.push(data.opis_kvara || null);
   }
   if (data.napomena !== undefined) {
     updates.push('napomena = ?');

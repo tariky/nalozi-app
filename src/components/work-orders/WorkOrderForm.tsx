@@ -45,6 +45,7 @@ export function WorkOrderForm({ workOrderId, onBack, onSaved }: WorkOrderFormPro
     model_vozila: "",
     motor: "",
     mechanic_id: initialMechanicId,
+    opis_kvara: "",
     napomena: "",
     status: "otvoren",
   });
@@ -163,6 +164,7 @@ export function WorkOrderForm({ workOrderId, onBack, onSaved }: WorkOrderFormPro
             model_vozila: wo.model_vozila,
             motor: wo.motor || "",
             mechanic_id: wo.mechanic_id || undefined,
+            opis_kvara: wo.opis_kvara || "",
             napomena: wo.napomena || "",
             status: wo.status,
           });
@@ -415,6 +417,19 @@ export function WorkOrderForm({ workOrderId, onBack, onSaved }: WorkOrderFormPro
                   <SelectItem value="zavrsen">Završen</SelectItem>
                 </SelectContent>
               </Select>
+            </div>
+
+            <div className="space-y-2 sm:col-span-2">
+              <Label htmlFor="opis_kvara">Opis kvara / Traženi posao</Label>
+              <Textarea
+                id="opis_kvara"
+                value={formData.opis_kvara}
+                onChange={(e) =>
+                  setFormData({ ...formData, opis_kvara: e.target.value })
+                }
+                placeholder="Šta klijent traži da se uradi..."
+                rows={3}
+              />
             </div>
 
             <div className="space-y-2 sm:col-span-2">

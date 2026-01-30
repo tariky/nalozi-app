@@ -53,15 +53,21 @@ async function seedAdminUser(db: Database): Promise<void> {
 }
 
 function runMigrations(db: Database): void {
-  // Add closed_at column if it doesn't exist
   try {
     const columns = db.query<{ name: string }, []>(
       "PRAGMA table_info(work_orders)"
     ).all();
 
+    // Add closed_at column if it doesn't exist
     const hasClosedAt = columns.some(col => col.name === 'closed_at');
     if (!hasClosedAt) {
       db.exec("ALTER TABLE work_orders ADD COLUMN closed_at TEXT");
+    }
+
+    // Add opis_kvara column if it doesn't exist
+    const hasOpisKvara = columns.some(col => col.name === 'opis_kvara');
+    if (!hasOpisKvara) {
+      db.exec("ALTER TABLE work_orders ADD COLUMN opis_kvara TEXT");
     }
   } catch {}
 }

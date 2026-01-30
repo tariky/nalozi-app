@@ -322,6 +322,16 @@ function WorkOrderPDFDocument({ workOrder }: WorkOrderPDFDocumentProps) {
           </View>
         </View>
 
+        {/* Job Description */}
+        {workOrder.opis_kvara && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>OPIS KVARA / TRAŽENI POSAO</Text>
+            <View style={styles.notes}>
+              <Text>{workOrder.opis_kvara}</Text>
+            </View>
+          </View>
+        )}
+
         {/* Notes */}
         {workOrder.napomena && (
           <View style={styles.section}>

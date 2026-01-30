@@ -40,6 +40,7 @@ export interface WorkOrder {
   model_vozila: string;
   motor: string | null;
   mechanic_id: number | null;
+  opis_kvara: string | null;
   napomena: string | null;
   status: 'otvoren' | 'u_toku' | 'zavrsen';
   ukupna_cijena: number;
@@ -105,6 +106,7 @@ export interface WorkOrderForm {
   model_vozila: string;
   motor?: string;
   mechanic_id?: number;
+  opis_kvara?: string;
   napomena?: string;
   status?: 'otvoren' | 'u_toku' | 'zavrsen';
 }

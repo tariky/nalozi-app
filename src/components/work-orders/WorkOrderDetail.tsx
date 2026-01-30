@@ -190,10 +190,17 @@ export function WorkOrderDetail({
           </div>
         </div>
 
+        {workOrder.opis_kvara && (
+          <div className="text-sm">
+            <span className="text-xs text-gray-500">Opis kvara / Traženi posao</span>
+            <p className="text-gray-700 whitespace-pre-wrap">{workOrder.opis_kvara}</p>
+          </div>
+        )}
+
         {workOrder.napomena && (
           <div className="text-sm">
             <span className="text-xs text-gray-500">Napomena</span>
-            <p className="text-gray-700">{workOrder.napomena}</p>
+            <p className="text-gray-700 whitespace-pre-wrap">{workOrder.napomena}</p>
           </div>
         )}
       </div>
@@ -263,7 +270,7 @@ export function WorkOrderDetail({
         </div>
       </div>
 
-      {/* Desktop: Mechanic & Notes */}
+      {/* Desktop: Mechanic, Job Description & Notes */}
       <div className="hidden sm:block bg-white rounded-xl shadow-sm p-6">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
           <div>
@@ -274,10 +281,16 @@ export function WorkOrderDetail({
                 : "Nije dodijeljen"}
             </p>
           </div>
+          {workOrder.opis_kvara && (
+            <div className="sm:col-span-2">
+              <span className="text-sm text-gray-500">Opis kvara / Traženi posao</span>
+              <p className="font-medium whitespace-pre-wrap">{workOrder.opis_kvara}</p>
+            </div>
+          )}
           {workOrder.napomena && (
-            <div>
+            <div className="sm:col-span-2">
               <span className="text-sm text-gray-500">Napomena</span>
-              <p className="font-medium">{workOrder.napomena}</p>
+              <p className="font-medium whitespace-pre-wrap">{workOrder.napomena}</p>
             </div>
           )}
         </div>

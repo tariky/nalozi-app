@@ -46,6 +46,7 @@ CREATE TABLE IF NOT EXISTS work_orders (
   model_vozila TEXT NOT NULL,
   motor TEXT,
   mechanic_id INTEGER,
+  opis_kvara TEXT,
   napomena TEXT,
   status TEXT DEFAULT 'otvoren',
   ukupna_cijena REAL DEFAULT 0,
