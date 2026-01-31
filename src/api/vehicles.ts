@@ -1,8 +1,13 @@
 import { getDB } from '../db';
+import { requireAuth, validateCsrf } from './auth';
 import type { Vehicle, VehicleForm, Customer } from '../types';
 
 // GET /api/vehicles/check-vin/:vin - Check if VIN exists
 export function checkVin(req: Request): Response {
+  // Require authentication
+  const authResult = requireAuth(req);
+  if (authResult instanceof Response) return authResult;
+
   const url = new URL(req.url);
   const vin = url.pathname.split('/').pop() || '';
 
@@ -37,6 +42,10 @@ export function checkVin(req: Request): Response {
 
 // GET /api/vehicles/by-customer/:customerId - Get vehicles for a customer
 export function getVehiclesByCustomer(req: Request): Response {
+  // Require authentication
+  const authResult = requireAuth(req);
+  if (authResult instanceof Response) return authResult;
+
   const url = new URL(req.url);
   const customerId = parseInt(url.pathname.split('/').pop() || '0');
 
@@ -50,6 +59,10 @@ export function getVehiclesByCustomer(req: Request): Response {
 
 // GET /api/vehicles/:id - Get single vehicle
 export function getVehicleById(req: Request): Response {
+  // Require authentication
+  const authResult = requireAuth(req);
+  if (authResult instanceof Response) return authResult;
+
   const url = new URL(req.url);
   const id = parseInt(url.pathname.split('/').pop() || '0');
 
@@ -67,6 +80,12 @@ export function getVehicleById(req: Request): Response {
 
 // POST /api/vehicles - Create vehicle
 export async function createVehicle(req: Request): Promise<Response> {
+  // Require authentication + CSRF validation
+  const authResult = requireAuth(req);
+  if (authResult instanceof Response) return authResult;
+  const csrfError = validateCsrf(req);
+  if (csrfError) return csrfError;
+
   const data: VehicleForm = await req.json();
 
   if (!data.customer_id || !data.registarske_tablice || !data.marka_vozila || !data.model_vozila) {
@@ -111,6 +130,12 @@ export async function createVehicle(req: Request): Promise<Response> {
 
 // PUT /api/vehicles/:id - Update vehicle
 export async function updateVehicle(req: Request): Promise<Response> {
+  // Require authentication + CSRF validation
+  const authResult = requireAuth(req);
+  if (authResult instanceof Response) return authResult;
+  const csrfError = validateCsrf(req);
+  if (csrfError) return csrfError;
+
   const url = new URL(req.url);
   const id = parseInt(url.pathname.split('/').pop() || '0');
   const data: Partial<VehicleForm> = await req.json();
@@ -146,6 +171,12 @@ export async function updateVehicle(req: Request): Promise<Response> {
 
 // DELETE /api/vehicles/:id - Delete vehicle
 export function deleteVehicle(req: Request): Response {
+  // Require authentication + CSRF validation
+  const authResult = requireAuth(req);
+  if (authResult instanceof Response) return authResult;
+  const csrfError = validateCsrf(req);
+  if (csrfError) return csrfError;
+
   const url = new URL(req.url);
   const id = parseInt(url.pathname.split('/').pop() || '0');
 

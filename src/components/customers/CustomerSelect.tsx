@@ -99,7 +99,7 @@ export function CustomerSelect({ value, onChange }: CustomerSelectProps) {
           <div className="space-y-4">
             <div className="flex gap-2">
               <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
                   placeholder="Pretraži..."
                   value={searchQuery}
@@ -109,7 +109,7 @@ export function CustomerSelect({ value, onChange }: CustomerSelectProps) {
               </div>
               <Button
                 variant="outline"
-                size="icon"
+                className="h-10 w-10 shrink-0"
                 onClick={() => setFormOpen(true)}
               >
                 <Plus className="h-4 w-4" />
@@ -118,11 +118,11 @@ export function CustomerSelect({ value, onChange }: CustomerSelectProps) {
 
             <div className="max-h-64 overflow-auto space-y-1">
               {loading ? (
-                <p className="text-center text-sm text-gray-500 py-4">
+                <p className="text-center text-sm text-muted-foreground py-4">
                   Učitavanje...
                 </p>
               ) : customers.length === 0 ? (
-                <p className="text-center text-sm text-gray-500 py-4">
+                <p className="text-center text-sm text-muted-foreground py-4">
                   Nema klijenata
                 </p>
               ) : (
@@ -132,8 +132,8 @@ export function CustomerSelect({ value, onChange }: CustomerSelectProps) {
                     type="button"
                     onClick={() => handleSelect(customer)}
                     className={cn(
-                      "w-full flex items-center justify-between px-3 py-2 rounded-lg text-left hover:bg-gray-100",
-                      value === customer.id && "bg-gray-100"
+                      "w-full flex items-center justify-between px-3 py-2 rounded-none text-left hover:bg-muted",
+                      value === customer.id && "bg-muted"
                     )}
                   >
                     <div>
@@ -141,13 +141,13 @@ export function CustomerSelect({ value, onChange }: CustomerSelectProps) {
                         {customer.ime} {customer.prezime}
                       </div>
                       {customer.naziv_firme && (
-                        <div className="text-sm text-gray-500">
+                        <div className="text-sm text-muted-foreground">
                           {customer.naziv_firme}
                         </div>
                       )}
                     </div>
                     {value === customer.id && (
-                      <Check className="h-4 w-4 text-green-600" />
+                      <Check className="h-4 w-4 text-status-success" />
                     )}
                   </button>
                 ))

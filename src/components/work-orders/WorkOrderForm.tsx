@@ -14,6 +14,7 @@ import {
 import { CustomerSelect } from "@/components/customers/CustomerSelect";
 import { VehicleSelect } from "@/components/vehicles/VehicleSelect";
 import { workOrdersApi, mechanicsApi, vehiclesApi } from "@/lib/api";
+import { invalidateWorkOrdersCache } from "./WorkOrderList";
 import { useAuth } from "@/contexts/AuthContext";
 import type { WorkOrder, WorkOrderForm as WorkOrderFormData, Mechanic, Customer, Vehicle } from "@/types";
 
@@ -218,6 +219,7 @@ export function WorkOrderForm({ workOrderId, onBack, onSaved }: WorkOrderFormPro
       }
 
       if (result.success && result.data) {
+        invalidateWorkOrdersCache();
         onSaved(result.data);
       } else {
         setError(result.error || "Greška pri spremanju");
@@ -232,7 +234,7 @@ export function WorkOrderForm({ workOrderId, onBack, onSaved }: WorkOrderFormPro
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
-        <div className="text-gray-500">Učitavanje...</div>
+        <div className="text-muted-foreground">Učitavanje...</div>
       </div>
     );
   }
@@ -245,7 +247,7 @@ export function WorkOrderForm({ workOrderId, onBack, onSaved }: WorkOrderFormPro
           <ArrowLeft className="h-5 w-5" />
         </Button>
         <div>
-          <h1 className="text-2xl font-semibold text-gray-900">
+          <h1 className="text-2xl font-semibold text-foreground">
             {workOrderId ? "Uredi radni nalog" : "Novi radni nalog"}
           </h1>
         </div>
@@ -253,14 +255,14 @@ export function WorkOrderForm({ workOrderId, onBack, onSaved }: WorkOrderFormPro
 
       <form onSubmit={handleSubmit} className="space-y-6">
         {error && (
-          <div className="text-sm text-red-600 bg-red-50 p-4 rounded-lg">
+          <div className="text-sm text-destructive bg-destructive/10 p-4 rounded-none">
             {error}
           </div>
         )}
 
         {/* Customer Section */}
-        <div className="bg-white rounded-xl shadow-sm p-6 space-y-4">
-          <h2 className="text-lg font-medium text-gray-900">Klijent</h2>
+        <div className="bg-card rounded-none border border-border p-6 space-y-4">
+          <h2 className="text-lg font-medium text-foreground">Klijent</h2>
 
           <div className="space-y-2">
             <Label>Odaberi klijenta *</Label>
@@ -272,8 +274,8 @@ export function WorkOrderForm({ workOrderId, onBack, onSaved }: WorkOrderFormPro
         </div>
 
         {/* Vehicle Section */}
-        <div className="bg-white rounded-xl shadow-sm p-6 space-y-4">
-          <h2 className="text-lg font-medium text-gray-900">Vozilo</h2>
+        <div className="bg-card rounded-none border border-border p-6 space-y-4">
+          <h2 className="text-lg font-medium text-foreground">Vozilo</h2>
 
           <div className="space-y-2">
             <Label>Odaberi postojeće ili dodaj novo</Label>
@@ -284,7 +286,7 @@ export function WorkOrderForm({ workOrderId, onBack, onSaved }: WorkOrderFormPro
             />
           </div>
 
-          <h3 className="text-sm font-medium text-gray-700 pt-2">Podaci o vozilu</h3>
+          <h3 className="text-sm font-medium text-foreground pt-2">Podaci o vozilu</h3>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
@@ -310,10 +312,10 @@ export function WorkOrderForm({ workOrderId, onBack, onSaved }: WorkOrderFormPro
                 className={vinWarning ? "border-yellow-500" : ""}
               />
               {checkingVin && (
-                <p className="text-xs text-gray-500">Provjera VIN-a...</p>
+                <p className="text-xs text-muted-foreground">Provjera VIN-a...</p>
               )}
               {vinWarning && (
-                <div className="text-sm text-yellow-700 bg-yellow-50 p-3 rounded-lg">
+                <div className="text-sm text-status-warning bg-status-warning/10 p-3 rounded-none">
                   {vinWarning.message}
                 </div>
               )}
@@ -358,8 +360,8 @@ export function WorkOrderForm({ workOrderId, onBack, onSaved }: WorkOrderFormPro
         </div>
 
         {/* Work Order Details */}
-        <div className="bg-white rounded-xl shadow-sm p-6 space-y-4">
-          <h2 className="text-lg font-medium text-gray-900">Detalji naloga</h2>
+        <div className="bg-card rounded-none border border-border p-6 space-y-4">
+          <h2 className="text-lg font-medium text-foreground">Detalji naloga</h2>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
@@ -369,7 +371,7 @@ export function WorkOrderForm({ workOrderId, onBack, onSaved }: WorkOrderFormPro
                 <Input
                   value={user?.mechanic ? `${user.mechanic.ime} ${user.mechanic.prezime}` : "Vi"}
                   disabled
-                  className="bg-gray-50"
+                  className="bg-muted/50"
                 />
               ) : (
                 // Admins can select any mechanic

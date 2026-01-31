@@ -83,8 +83,8 @@ export function SalesReport() {
       {/* Summary Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         <StatCard label="Ukupna prodaja" value={formatCurrency(totals.ukupno)} />
-        <StatCard label="Dijelovi" value={formatCurrency(totals.dijelovi)} color="blue" />
-        <StatCard label="Usluge" value={formatCurrency(totals.usluge)} color="green" />
+        <StatCard label="Dijelovi" value={formatCurrency(totals.dijelovi)} />
+        <StatCard label="Usluge" value={formatCurrency(totals.usluge)} />
         <StatCard label="Broj naloga" value={totals.nalozi} />
       </div>
 
@@ -97,7 +97,7 @@ export function SalesReport() {
             ))}
           </div>
         ) : data.length === 0 ? (
-          <div className="p-8 sm:p-12 text-center text-gray-500">
+          <div className="p-8 sm:p-12 text-center text-muted-foreground">
             Nema podataka za odabrani period
           </div>
         ) : (
@@ -141,25 +141,25 @@ export function SalesReport() {
               {data.map((row) => (
                 <div key={row.datum} className="p-4">
                   <div className="flex justify-between items-center mb-2">
-                    <span className="font-semibold text-gray-900">
+                    <span className="font-semibold text-foreground">
                       {formatDate(row.datum)}
                     </span>
-                    <span className="text-sm text-gray-500">
+                    <span className="text-sm text-muted-foreground">
                       {row.broj_naloga} naloga
                     </span>
                   </div>
                   <div className="grid grid-cols-3 gap-2 text-sm">
                     <div>
-                      <div className="text-gray-500">Dijelovi</div>
+                      <div className="text-muted-foreground">Dijelovi</div>
                       <div className="font-medium">{formatCurrency(row.ukupno_dijelovi)}</div>
                     </div>
                     <div>
-                      <div className="text-gray-500">Usluge</div>
+                      <div className="text-muted-foreground">Usluge</div>
                       <div className="font-medium">{formatCurrency(row.ukupno_usluge)}</div>
                     </div>
                     <div>
-                      <div className="text-gray-500">Ukupno</div>
-                      <div className="font-semibold text-gray-900">{formatCurrency(row.ukupno)}</div>
+                      <div className="text-muted-foreground">Ukupno</div>
+                      <div className="font-semibold text-foreground">{formatCurrency(row.ukupno)}</div>
                     </div>
                   </div>
                 </div>

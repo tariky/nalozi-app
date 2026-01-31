@@ -1,7 +1,13 @@
-import { useState, useEffect } from "react";
-import { Plus, Eye, Pencil, FileDown, ChevronLeft, ChevronRight, Clock } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
+import { Plus, Eye, Pencil, FileDown, ChevronLeft, ChevronRight, Clock, Upload, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import {
   Select,
   SelectContent,
@@ -33,36 +39,115 @@ interface WorkOrderListProps {
   onPrintPDF: (workOrder: WorkOrder) => void;
 }
 
+// Cache work orders to prevent flicker on navigation
+interface CacheEntry {
+  data: PaginatedResponse<WorkOrder>;
+  page: number;
+  statusFilter: string;
+  timestamp: number;
+}
+let workOrdersCache: CacheEntry | null = null;
+const CACHE_TTL = 30000; // 30 seconds
+
+// Export function to invalidate cache from other components
+export function invalidateWorkOrdersCache() {
+  workOrdersCache = null;
+}
+
 export function WorkOrderList({ onNew, onView, onEdit, onPrintPDF }: WorkOrderListProps) {
   const { isAdmin } = useAuth();
-  const [data, setData] = useState<PaginatedResponse<WorkOrder> | null>(null);
-  const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
   const [statusFilter, setStatusFilter] = useState<string>("all");
 
-  const loadWorkOrders = async () => {
-    setLoading(true);
+  // Initialize from cache if valid
+  const getCachedData = () => {
+    if (
+      workOrdersCache &&
+      workOrdersCache.page === page &&
+      workOrdersCache.statusFilter === statusFilter &&
+      Date.now() - workOrdersCache.timestamp < CACHE_TTL
+    ) {
+      return workOrdersCache.data;
+    }
+    return null;
+  };
+
+  const [data, setData] = useState<PaginatedResponse<WorkOrder> | null>(getCachedData);
+  const [loading, setLoading] = useState(!getCachedData());
+  const [importLoading, setImportLoading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const loadWorkOrders = async (showLoading = true) => {
+    if (showLoading && !data) setLoading(true);
     const filters = statusFilter !== "all" ? { status: statusFilter } : undefined;
     const result = await workOrdersApi.getAll(page, 20, filters);
     if (result.success && result.data) {
+      workOrdersCache = {
+        data: result.data,
+        page,
+        statusFilter,
+        timestamp: Date.now(),
+      };
       setData(result.data);
     }
     setLoading(false);
   };
 
   useEffect(() => {
-    loadWorkOrders();
+    const cached = getCachedData();
+    if (cached) {
+      setData(cached);
+      setLoading(false);
+      // Refresh in background
+      loadWorkOrders(false);
+    } else {
+      loadWorkOrders(true);
+    }
   }, [page, statusFilter]);
 
   const handleDelete = async (id: number) => {
     if (confirm("Da li ste sigurni da želite obrisati ovaj radni nalog?")) {
       await workOrdersApi.delete(id);
-      loadWorkOrders();
+      workOrdersCache = null; // Invalidate cache
+      loadWorkOrders(true);
     }
   };
 
   const handleSearchSelect = (workOrder: WorkOrder) => {
     onView(workOrder.id);
+  };
+
+  const handleExport = async () => {
+    const result = await workOrdersApi.exportCSV();
+    if (!result.success) {
+      alert(result.error);
+    }
+  };
+
+  const handleImportClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setImportLoading(true);
+    const result = await workOrdersApi.importCSV(file);
+    setImportLoading(false);
+
+    if (result.success) {
+      alert(result.data?.message || 'Import uspješan');
+      workOrdersCache = null; // Invalidate cache
+      loadWorkOrders(true);
+    } else {
+      alert(result.error || 'Greška pri importu');
+    }
+
+    // Reset file input
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
   };
 
   return (
@@ -71,10 +156,54 @@ export function WorkOrderList({ onNew, onView, onEdit, onPrintPDF }: WorkOrderLi
         title="Radni nalozi"
         description="Upravljajte radnim nalozima auto servisa"
         action={
-          <Button onClick={onNew} className="w-full sm:w-auto">
-            <Plus className="h-4 w-4 mr-2" />
-            Novi nalog
-          </Button>
+          <TooltipProvider>
+            <div className="flex items-center gap-2">
+              {isAdmin && (
+                <div className="hidden sm:flex items-center gap-2">
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        onClick={handleExport}
+                      >
+                        <Download className="h-4 w-4" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Eksportuj CSV</p>
+                    </TooltipContent>
+                  </Tooltip>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        onClick={handleImportClick}
+                        disabled={importLoading}
+                      >
+                        <Upload className="h-4 w-4" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Importuj CSV</p>
+                    </TooltipContent>
+                  </Tooltip>
+                  <input
+                    type="file"
+                    ref={fileInputRef}
+                    onChange={handleFileSelect}
+                    accept=".csv"
+                    className="hidden"
+                  />
+                </div>
+              )}
+              <Button onClick={onNew}>
+                <Plus className="h-4 w-4 mr-2" />
+                Novi nalog
+              </Button>
+            </div>
+          </TooltipProvider>
         }
       />
 
@@ -109,7 +238,7 @@ export function WorkOrderList({ onNew, onView, onEdit, onPrintPDF }: WorkOrderLi
           </div>
         ) : !data || data.items.length === 0 ? (
           <div className="p-8 sm:p-12 text-center">
-            <p className="text-gray-500 mb-4">Nema radnih naloga</p>
+            <p className="text-muted-foreground mb-4">Nema radnih naloga</p>
             <Button onClick={onNew} variant="outline">
               <Plus className="h-4 w-4 mr-2" />
               Kreiraj prvi nalog
@@ -133,7 +262,7 @@ export function WorkOrderList({ onNew, onView, onEdit, onPrintPDF }: WorkOrderLi
                 </TableHeader>
                 <TableBody>
                   {data.items.map((wo) => (
-                    <TableRow key={wo.id} className="cursor-pointer hover:bg-gray-50">
+                    <TableRow key={wo.id} className="cursor-pointer">
                       <TableCell
                         className="font-medium"
                         onClick={() => onView(wo.id)}
@@ -145,14 +274,14 @@ export function WorkOrderList({ onNew, onView, onEdit, onPrintPDF }: WorkOrderLi
                           {wo.customer?.ime} {wo.customer?.prezime}
                         </div>
                         {wo.customer?.naziv_firme && (
-                          <div className="text-sm text-gray-500">
+                          <div className="text-sm text-muted-foreground">
                             {wo.customer.naziv_firme}
                           </div>
                         )}
                       </TableCell>
                       <TableCell onClick={() => onView(wo.id)}>
                         <div>{wo.marka_vozila} {wo.model_vozila}</div>
-                        <div className="text-sm text-gray-500 font-mono">
+                        <div className="text-sm text-muted-foreground font-mono">
                           {wo.registarske_tablice}
                         </div>
                       </TableCell>
@@ -187,17 +316,17 @@ export function WorkOrderList({ onNew, onView, onEdit, onPrintPDF }: WorkOrderLi
             </div>
 
             {/* Mobile/Tablet Cards */}
-            <div className="lg:hidden divide-y">
+            <div className="lg:hidden divide-y divide-border">
               {data.items.map((wo) => (
                 <div
                   key={wo.id}
-                  className="p-4 active:bg-gray-50"
+                  className="p-4 active:bg-muted/50"
                   onClick={() => onView(wo.id)}
                 >
                   <div className="flex items-start justify-between gap-3 mb-2">
                     <div className="min-w-0 flex-1">
-                      <div className="font-semibold text-gray-900">{wo.broj_naloga}</div>
-                      <div className="flex items-center gap-2 text-sm text-gray-500">
+                      <div className="font-medium text-foreground">{wo.broj_naloga}</div>
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
                         <span>{formatDate(wo.created_at)}</span>
                         <span className="flex items-center gap-1">
                           <Clock className="h-3 w-3" />
@@ -209,17 +338,17 @@ export function WorkOrderList({ onNew, onView, onEdit, onPrintPDF }: WorkOrderLi
                       {getStatusLabel(wo.status)}
                     </Badge>
                   </div>
-                  <div className="text-sm font-medium text-gray-900 mb-1">
+                  <div className="text-sm font-medium text-foreground mb-1">
                     {wo.customer?.ime} {wo.customer?.prezime}
                     {wo.customer?.naziv_firme && (
-                      <span className="text-gray-500 font-normal"> • {wo.customer.naziv_firme}</span>
+                      <span className="text-muted-foreground font-normal"> • {wo.customer.naziv_firme}</span>
                     )}
                   </div>
-                  <div className="text-sm text-gray-500 mb-2">
+                  <div className="text-sm text-muted-foreground mb-2">
                     {wo.marka_vozila} {wo.model_vozila} • {wo.registarske_tablice}
                   </div>
                   <div className="flex items-center justify-between">
-                    <span className="text-lg font-semibold text-gray-900">
+                    <span className="text-lg font-semibold text-foreground">
                       {formatCurrency(wo.ukupna_cijena)}
                     </span>
                     <div className="flex gap-1">
@@ -247,8 +376,8 @@ export function WorkOrderList({ onNew, onView, onEdit, onPrintPDF }: WorkOrderLi
 
             {/* Pagination */}
             {data.totalPages > 1 && (
-              <div className="flex items-center justify-between px-4 py-3 border-t">
-                <div className="text-xs sm:text-sm text-gray-500">
+              <div className="flex items-center justify-between px-4 py-3 border-t border-border">
+                <div className="text-xs sm:text-sm text-muted-foreground">
                   Str. {data.page}/{data.totalPages} ({data.total})
                 </div>
                 <div className="flex gap-2">

@@ -92,12 +92,12 @@ export function TimeTracker({ workOrderId, mechanicId, timeEntries, onUpdate, is
       {/* Header with Start/Stop and Total */}
       <div className="flex items-center justify-between gap-4">
         <div>
-          <div className="text-sm text-gray-500">Ukupno vrijeme</div>
-          <div className="text-2xl font-bold text-gray-900">
+          <div className="text-sm text-muted-foreground">Ukupno vrijeme</div>
+          <div className="text-2xl font-bold text-foreground">
             {formatBillingTime(totalMinutes)}
           </div>
           {totalMinutes !== billingMinutes && (
-            <div className="text-xs text-gray-400">
+            <div className="text-xs text-muted-foreground">
               (stvarno: {Math.floor(totalMinutes / 60)}h {totalMinutes % 60}m)
             </div>
           )}
@@ -128,9 +128,9 @@ export function TimeTracker({ workOrderId, mechanicId, timeEntries, onUpdate, is
 
       {/* Active entry indicator */}
       {isRunning && activeEntry && (
-        <div className="flex items-center gap-2 p-3 bg-green-50 rounded-lg border border-green-200">
-          <div className="h-2 w-2 rounded-full bg-green-500 animate-pulse" />
-          <span className="text-sm text-green-700">
+        <div className="flex items-center gap-2 p-3 bg-status-success/10 rounded-none border border-status-success">
+          <div className="h-2 w-2 rounded-none bg-status-success animate-pulse" />
+          <span className="text-sm text-status-success">
             U toku od {formatTime(activeEntry.started_at)}
           </span>
         </div>
@@ -139,20 +139,20 @@ export function TimeTracker({ workOrderId, mechanicId, timeEntries, onUpdate, is
       {/* Time entries list */}
       {timeEntries.length > 0 && (
         <div className="space-y-2">
-          <div className="text-sm font-medium text-gray-700">Evidencija vremena</div>
+          <div className="text-sm font-medium text-foreground">Evidencija vremena</div>
           <div className="space-y-1">
             {timeEntries.map((entry) => (
               <div
                 key={entry.id}
-                className={`flex items-center justify-between p-2 rounded-lg text-sm ${
-                  !entry.ended_at ? 'bg-green-50' : 'bg-gray-50'
+                className={`flex items-center justify-between p-2 rounded-none text-sm ${
+                  !entry.ended_at ? 'bg-status-success/10' : 'bg-muted/50'
                 }`}
               >
                 <div className="flex items-center gap-3">
-                  <Clock className="h-4 w-4 text-gray-400" />
+                  <Clock className="h-4 w-4 text-muted-foreground" />
                   <div>
-                    <span className="text-gray-600">{formatDate(entry.started_at)}</span>
-                    <span className="mx-2 text-gray-400">
+                    <span className="text-muted-foreground">{formatDate(entry.started_at)}</span>
+                    <span className="mx-2 text-muted-foreground">
                       {formatTime(entry.started_at)} - {entry.ended_at ? formatTime(entry.ended_at) : '...'}
                     </span>
                   </div>
@@ -168,7 +168,7 @@ export function TimeTracker({ workOrderId, mechanicId, timeEntries, onUpdate, is
                       className="h-7 w-7"
                       onClick={() => handleDelete(entry.id)}
                     >
-                      <Trash2 className="h-3 w-3 text-red-500" />
+                      <Trash2 className="h-3 w-3 text-destructive" />
                     </Button>
                   )}
                 </div>
@@ -179,7 +179,7 @@ export function TimeTracker({ workOrderId, mechanicId, timeEntries, onUpdate, is
       )}
 
       {timeEntries.length === 0 && (
-        <div className="text-center py-4 text-sm text-gray-500">
+        <div className="text-center py-4 text-sm text-muted-foreground">
           Nema evidentiranog vremena
         </div>
       )}

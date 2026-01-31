@@ -1,8 +1,13 @@
 import { getDB } from '../db';
+import { requireAdmin } from './auth';
 import type { SalesData, MechanicStats } from '../types';
 
-// GET /api/analytics/sales - Sales by date range
+// GET /api/analytics/sales - Sales by date range (admin only)
 export function getSalesAnalytics(req: Request): Response {
+  // Require admin access
+  const authResult = requireAdmin(req);
+  if (authResult instanceof Response) return authResult;
+
   const url = new URL(req.url);
   const from = url.searchParams.get('from');
   const to = url.searchParams.get('to');
@@ -43,8 +48,12 @@ export function getSalesAnalytics(req: Request): Response {
   return Response.json(salesData);
 }
 
-// GET /api/analytics/mechanics - Mechanic performance
+// GET /api/analytics/mechanics - Mechanic performance (admin only)
 export function getMechanicAnalytics(req: Request): Response {
+  // Require admin access
+  const authResult = requireAdmin(req);
+  if (authResult instanceof Response) return authResult;
+
   const url = new URL(req.url);
   const from = url.searchParams.get('from');
   const to = url.searchParams.get('to');
@@ -88,8 +97,12 @@ export function getMechanicAnalytics(req: Request): Response {
   return Response.json(mechanicStats);
 }
 
-// Alternative simpler mechanic analytics
+// Alternative simpler mechanic analytics (admin only)
 export function getMechanicStats(req: Request): Response {
+  // Require admin access
+  const authResult = requireAdmin(req);
+  if (authResult instanceof Response) return authResult;
+
   const url = new URL(req.url);
   const from = url.searchParams.get('from');
   const to = url.searchParams.get('to');
@@ -131,8 +144,12 @@ export function getMechanicStats(req: Request): Response {
   return Response.json(stats);
 }
 
-// GET /api/analytics/summary - Quick summary stats
+// GET /api/analytics/summary - Quick summary stats (admin only)
 export function getAnalyticsSummary(req: Request): Response {
+  // Require admin access
+  const authResult = requireAdmin(req);
+  if (authResult instanceof Response) return authResult;
+
   const url = new URL(req.url);
   const from = url.searchParams.get('from');
   const to = url.searchParams.get('to');

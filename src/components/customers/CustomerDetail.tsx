@@ -68,7 +68,7 @@ export function CustomerDetail({
   if (!customer) {
     return (
       <div className="text-center py-12">
-        <p className="text-gray-500">Klijent nije pronađen</p>
+        <p className="text-muted-foreground">Klijent nije pronađen</p>
         <Button variant="outline" onClick={onBack} className="mt-4">
           Nazad
         </Button>
@@ -87,11 +87,11 @@ export function CustomerDetail({
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <div>
-            <h1 className="text-2xl font-semibold text-gray-900">
+            <h1 className="text-2xl font-semibold text-foreground">
               {customer.ime} {customer.prezime}
             </h1>
             {customer.naziv_firme && (
-              <p className="text-gray-500">{customer.naziv_firme}</p>
+              <p className="text-muted-foreground">{customer.naziv_firme}</p>
             )}
           </div>
         </div>
@@ -103,60 +103,60 @@ export function CustomerDetail({
 
       {/* Customer Info & Stats */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div className="bg-white rounded-xl shadow-sm p-6">
-          <h2 className="text-lg font-medium text-gray-900 mb-4">Podaci o klijentu</h2>
+        <div className="bg-card rounded-none border border-border p-6">
+          <h2 className="text-lg font-medium text-foreground mb-4">Podaci o klijentu</h2>
           <div className="space-y-3">
             <div>
-              <span className="text-sm text-gray-500">Ime i prezime</span>
+              <span className="text-sm text-muted-foreground">Ime i prezime</span>
               <p className="font-medium">{customer.ime} {customer.prezime}</p>
             </div>
             {customer.naziv_firme && (
               <div>
-                <span className="text-sm text-gray-500">Firma</span>
+                <span className="text-sm text-muted-foreground">Firma</span>
                 <p className="font-medium">{customer.naziv_firme}</p>
               </div>
             )}
             {customer.telefon && (
               <div>
-                <span className="text-sm text-gray-500">Telefon</span>
+                <span className="text-sm text-muted-foreground">Telefon</span>
                 <p className="font-medium">{customer.telefon}</p>
               </div>
             )}
             {customer.email && (
               <div>
-                <span className="text-sm text-gray-500">Email</span>
+                <span className="text-sm text-muted-foreground">Email</span>
                 <p className="font-medium">{customer.email}</p>
               </div>
             )}
           </div>
         </div>
 
-        <div className="bg-white rounded-xl shadow-sm p-6">
-          <h2 className="text-lg font-medium text-gray-900 mb-4">Statistika</h2>
+        <div className="bg-card rounded-none border border-border p-6">
+          <h2 className="text-lg font-medium text-foreground mb-4">Statistika</h2>
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <span className="text-sm text-gray-500">Broj naloga</span>
-              <p className="text-2xl font-bold text-gray-900">{workOrders.length}</p>
+              <span className="text-sm text-muted-foreground">Broj naloga</span>
+              <p className="text-2xl font-bold text-foreground">{workOrders.length}</p>
             </div>
             <div>
-              <span className="text-sm text-gray-500">Ukupno potrošeno</span>
-              <p className="text-2xl font-bold text-green-600">{formatCurrency(totalSpent)}</p>
+              <span className="text-sm text-muted-foreground">Ukupno potrošeno</span>
+              <p className="text-2xl font-bold text-status-success">{formatCurrency(totalSpent)}</p>
             </div>
           </div>
         </div>
       </div>
 
       {/* Work Orders */}
-      <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+      <div className="bg-card rounded-none border border-border overflow-hidden">
         <div className="p-6 border-b">
-          <h2 className="text-lg font-medium text-gray-900 flex items-center gap-2">
+          <h2 className="text-lg font-medium text-foreground flex items-center gap-2">
             <FileText className="h-5 w-5" />
             Radni nalozi ({workOrders.length})
           </h2>
         </div>
 
         {workOrders.length === 0 ? (
-          <div className="p-12 text-center text-gray-500">
+          <div className="p-12 text-center text-muted-foreground">
             Ovaj klijent nema radnih naloga
           </div>
         ) : (
@@ -178,13 +178,13 @@ export function CustomerDetail({
                   {workOrders.map((wo) => (
                     <TableRow
                       key={wo.id}
-                      className="cursor-pointer hover:bg-gray-50"
+                      className="cursor-pointer hover:bg-muted/50"
                       onClick={() => onViewWorkOrder(wo.id)}
                     >
                       <TableCell className="font-medium">{wo.broj_naloga}</TableCell>
                       <TableCell>
                         <div>{wo.marka_vozila} {wo.model_vozila}</div>
-                        <div className="text-sm text-gray-500 font-mono">
+                        <div className="text-sm text-muted-foreground font-mono">
                           {wo.registarske_tablice}
                         </div>
                       </TableCell>
@@ -220,13 +220,13 @@ export function CustomerDetail({
               {workOrders.map((wo) => (
                 <div
                   key={wo.id}
-                  className="p-4 hover:bg-gray-50 cursor-pointer"
+                  className="p-4 hover:bg-muted/50 cursor-pointer"
                   onClick={() => onViewWorkOrder(wo.id)}
                 >
                   <div className="flex items-start justify-between mb-2">
                     <div>
                       <div className="font-medium">{wo.broj_naloga}</div>
-                      <div className="text-sm text-gray-500">
+                      <div className="text-sm text-muted-foreground">
                         {formatDate(wo.created_at)}
                       </div>
                     </div>
@@ -234,7 +234,7 @@ export function CustomerDetail({
                       {getStatusLabel(wo.status)}
                     </Badge>
                   </div>
-                  <div className="text-sm text-gray-500">
+                  <div className="text-sm text-muted-foreground">
                     {wo.marka_vozila} {wo.model_vozila} • {wo.registarske_tablice}
                   </div>
                   <div className="mt-2 text-right font-medium">

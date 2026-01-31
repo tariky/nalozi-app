@@ -170,11 +170,11 @@ export function VehicleSelect({ customerId, value, onChange }: VehicleSelectProp
 
             <div className="max-h-64 overflow-auto space-y-1">
               {loading ? (
-                <p className="text-center text-sm text-gray-500 py-4">
+                <p className="text-center text-sm text-muted-foreground py-4">
                   Učitavanje...
                 </p>
               ) : vehicles.length === 0 ? (
-                <p className="text-center text-sm text-gray-500 py-4">
+                <p className="text-center text-sm text-muted-foreground py-4">
                   Nema vozila za ovog klijenta
                 </p>
               ) : (
@@ -184,15 +184,15 @@ export function VehicleSelect({ customerId, value, onChange }: VehicleSelectProp
                     type="button"
                     onClick={handleClearSelection}
                     className={cn(
-                      "w-full flex items-center justify-between px-3 py-2 rounded-lg text-left hover:bg-gray-100",
-                      !selectedVehicle && "bg-gray-100"
+                      "w-full flex items-center justify-between px-3 py-2 rounded-none text-left hover:bg-muted",
+                      !selectedVehicle && "bg-muted"
                     )}
                   >
-                    <div className="text-gray-500">
+                    <div className="text-muted-foreground">
                       Unesi novo vozilo ručno
                     </div>
                     {!selectedVehicle && (
-                      <Check className="h-4 w-4 text-green-600" />
+                      <Check className="h-4 w-4 text-status-success" />
                     )}
                   </button>
 
@@ -200,8 +200,8 @@ export function VehicleSelect({ customerId, value, onChange }: VehicleSelectProp
                     <div
                       key={vehicle.id}
                       className={cn(
-                        "flex items-center justify-between px-3 py-2 rounded-lg hover:bg-gray-100",
-                        value === vehicle.id && "bg-gray-100"
+                        "flex items-center justify-between px-3 py-2 rounded-none hover:bg-muted",
+                        value === vehicle.id && "bg-muted"
                       )}
                     >
                       <button
@@ -212,19 +212,19 @@ export function VehicleSelect({ customerId, value, onChange }: VehicleSelectProp
                         <div className="font-medium">
                           {vehicle.marka_vozila} {vehicle.model_vozila}
                         </div>
-                        <div className="text-sm text-gray-500">
+                        <div className="text-sm text-muted-foreground">
                           {vehicle.registarske_tablice}
                           {vehicle.motor && ` • ${vehicle.motor}`}
                         </div>
                       </button>
                       <div className="flex items-center gap-1 ml-2">
                         {value === vehicle.id && (
-                          <Check className="h-4 w-4 text-green-600" />
+                          <Check className="h-4 w-4 text-status-success" />
                         )}
                         <button
                           type="button"
                           onClick={(e) => handleDeleteVehicle(e, vehicle.id)}
-                          className="p-1 rounded hover:bg-gray-200 text-gray-400 hover:text-red-500"
+                          className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-destructive"
                           title="Obriši vozilo"
                         >
                           <Trash2 className="h-4 w-4" />
@@ -294,7 +294,7 @@ export function VehicleSelect({ customerId, value, onChange }: VehicleSelectProp
             </div>
 
             {formError && (
-              <div className="text-sm text-red-600 bg-red-50 p-3 rounded-lg">
+              <div className="text-sm text-destructive bg-destructive/10 p-3 rounded-none">
                 {formError}
               </div>
             )}

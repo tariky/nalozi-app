@@ -22,16 +22,38 @@ import type {
 
 const API_BASE = '/api';
 
+// CSRF token storage
+let csrfToken: string | null = null;
+
+export function setCsrfToken(token: string | null): void {
+  csrfToken = token;
+}
+
+export function getCsrfToken(): string | null {
+  return csrfToken;
+}
+
 async function fetchApi<T>(
   endpoint: string,
   options?: RequestInit
 ): Promise<ApiResponse<T>> {
   try {
+    const method = options?.method?.toUpperCase() || 'GET';
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
+
+    // Add CSRF token for state-changing requests
+    if (['POST', 'PUT', 'DELETE', 'PATCH'].includes(method) && csrfToken) {
+      headers['X-CSRF-Token'] = csrfToken;
+    }
+
     const response = await fetch(`${API_BASE}${endpoint}`, {
-      headers: {
-        'Content-Type': 'application/json',
-      },
       ...options,
+      headers: {
+        ...headers,
+        ...(options?.headers || {}),
+      },
     });
 
     if (!response.ok) {
@@ -144,6 +166,48 @@ export const workOrdersApi = {
 
   search: (query: string) =>
     fetchApi<WorkOrder[]>(`/work-orders/search?q=${encodeURIComponent(query)}`),
+
+  exportCSV: async () => {
+    try {
+      const response = await fetch(`${API_BASE}/work-orders/export/csv`);
+      if (!response.ok) {
+        return { success: false as const, error: 'Greška pri izvozu' };
+      }
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      const contentDisposition = response.headers.get('content-disposition');
+      const filename = contentDisposition?.match(/filename="(.+)"/)?.[1] || 'work-orders.csv';
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+      return { success: true as const, data: undefined };
+    } catch (error) {
+      return { success: false as const, error: 'Greška pri preuzimanju CSV fajla' };
+    }
+  },
+
+  importCSV: async (file: File) => {
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      const response = await fetch(`${API_BASE}/work-orders/import/csv`, {
+        method: 'POST',
+        body: formData,
+      });
+      if (!response.ok) {
+        const error = await response.json();
+        return { success: false as const, error: error.message || 'Greška pri importu' };
+      }
+      const data = await response.json();
+      return { success: true as const, data };
+    } catch (error) {
+      return { success: false as const, error: 'Greška pri komunikaciji sa serverom' };
+    }
+  },
 };
 
 // Work Order Items API

@@ -63,11 +63,10 @@ export function MechanicReport() {
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         <StatCard label="Mehaničara" value={data.length} />
         <StatCard label="Ukupno naloga" value={totals.nalozi} />
-        <StatCard label="Ukupna zarada" value={formatCurrency(totals.zarada)} color="green" />
+        <StatCard label="Ukupna zarada" value={formatCurrency(totals.zarada)} />
         <StatCard
           label="Prosjek"
           value={formatCurrency(data.length > 0 ? totals.zarada / data.length : 0)}
-          color="blue"
         />
       </div>
 
@@ -80,7 +79,7 @@ export function MechanicReport() {
             ))}
           </div>
         ) : data.length === 0 ? (
-          <div className="p-8 sm:p-12 text-center text-gray-500">
+          <div className="p-8 sm:p-12 text-center text-muted-foreground">
             Nema podataka za odabrani period
           </div>
         ) : (
@@ -110,13 +109,13 @@ export function MechanicReport() {
                       <TableCell className="text-right">
                         {formatCurrency(row.usluge)}
                       </TableCell>
-                      <TableCell className="text-right font-medium text-green-600">
+                      <TableCell className="text-right font-medium text-status-success">
                         {formatCurrency(row.ukupna_zarada)}
                       </TableCell>
                     </TableRow>
                   ))}
                   {/* Totals row */}
-                  <TableRow className="bg-gray-50 font-medium">
+                  <TableRow className="bg-muted/50 font-medium">
                     <TableCell>UKUPNO</TableCell>
                     <TableCell className="text-right">{totals.nalozi}</TableCell>
                     <TableCell className="text-right">
@@ -125,7 +124,7 @@ export function MechanicReport() {
                     <TableCell className="text-right">
                       {formatCurrency(totals.usluge)}
                     </TableCell>
-                    <TableCell className="text-right text-green-600">
+                    <TableCell className="text-right text-status-success">
                       {formatCurrency(totals.zarada)}
                     </TableCell>
                   </TableRow>
@@ -138,47 +137,47 @@ export function MechanicReport() {
               {data.map((row) => (
                 <div key={row.mechanic_id} className="p-4">
                   <div className="flex justify-between items-center mb-2">
-                    <span className="font-semibold text-gray-900">
+                    <span className="font-semibold text-foreground">
                       {row.ime} {row.prezime}
                     </span>
-                    <span className="text-sm text-gray-500">
+                    <span className="text-sm text-muted-foreground">
                       {row.broj_naloga} naloga
                     </span>
                   </div>
                   <div className="grid grid-cols-3 gap-2 text-sm">
                     <div>
-                      <div className="text-gray-500">Dijelovi</div>
+                      <div className="text-muted-foreground">Dijelovi</div>
                       <div className="font-medium">{formatCurrency(row.dijelovi)}</div>
                     </div>
                     <div>
-                      <div className="text-gray-500">Usluge</div>
+                      <div className="text-muted-foreground">Usluge</div>
                       <div className="font-medium">{formatCurrency(row.usluge)}</div>
                     </div>
                     <div>
-                      <div className="text-gray-500">Zarada</div>
-                      <div className="font-semibold text-green-600">{formatCurrency(row.ukupna_zarada)}</div>
+                      <div className="text-muted-foreground">Zarada</div>
+                      <div className="font-semibold text-status-success">{formatCurrency(row.ukupna_zarada)}</div>
                     </div>
                   </div>
                 </div>
               ))}
               {/* Totals */}
-              <div className="p-4 bg-gray-50">
+              <div className="p-4 bg-muted/50">
                 <div className="flex justify-between items-center mb-2">
-                  <span className="font-semibold text-gray-900">UKUPNO</span>
-                  <span className="text-sm text-gray-500">{totals.nalozi} naloga</span>
+                  <span className="font-semibold text-foreground">UKUPNO</span>
+                  <span className="text-sm text-muted-foreground">{totals.nalozi} naloga</span>
                 </div>
                 <div className="grid grid-cols-3 gap-2 text-sm">
                   <div>
-                    <div className="text-gray-500">Dijelovi</div>
+                    <div className="text-muted-foreground">Dijelovi</div>
                     <div className="font-medium">{formatCurrency(totals.dijelovi)}</div>
                   </div>
                   <div>
-                    <div className="text-gray-500">Usluge</div>
+                    <div className="text-muted-foreground">Usluge</div>
                     <div className="font-medium">{formatCurrency(totals.usluge)}</div>
                   </div>
                   <div>
-                    <div className="text-gray-500">Zarada</div>
-                    <div className="font-semibold text-green-600">{formatCurrency(totals.zarada)}</div>
+                    <div className="text-muted-foreground">Zarada</div>
+                    <div className="font-semibold text-status-success">{formatCurrency(totals.zarada)}</div>
                   </div>
                 </div>
               </div>

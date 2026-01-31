@@ -47,6 +47,8 @@ import {
   addWorkOrderItem,
   updateWorkOrderItem,
   deleteWorkOrderItem,
+  exportWorkOrdersCSV,
+  importWorkOrdersCSV,
 } from "./api/work-orders";
 
 import {
@@ -118,6 +120,12 @@ const server = serve({
     },
     "/api/work-orders/search": {
       GET: searchWorkOrders,
+    },
+    "/api/work-orders/export/csv": {
+      GET: exportWorkOrdersCSV,
+    },
+    "/api/work-orders/import/csv": {
+      POST: importWorkOrdersCSV,
     },
     "/api/work-orders/by-customer/:customerId": {
       GET: getWorkOrdersByCustomer,

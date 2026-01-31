@@ -8,7 +8,11 @@ interface PageContainerProps {
 
 export function PageContainer({ children, className }: PageContainerProps) {
   return (
-    <div className={cn("bg-white rounded-xl shadow-sm", className)}>
+    <div className={cn(
+      // Lyra container: clean border
+      "bg-card rounded-none border border-border",
+      className
+    )}>
       {children}
     </div>
   );
@@ -22,11 +26,11 @@ interface PageHeaderProps {
 
 export function PageHeader({ title, description, action }: PageHeaderProps) {
   return (
-    <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mb-6">
+    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-6">
       <div>
-        <h1 className="text-xl sm:text-2xl font-semibold text-gray-900">{title}</h1>
+        <h1 className="text-xl sm:text-2xl font-semibold text-foreground tracking-tight">{title}</h1>
         {description && (
-          <p className="text-sm text-gray-500 mt-1">{description}</p>
+          <p className="text-sm text-muted-foreground mt-1">{description}</p>
         )}
       </div>
       {action && <div className="flex-shrink-0">{action}</div>}
@@ -51,7 +55,8 @@ export function Card({ children, className, padding = "md" }: CardProps) {
   return (
     <div
       className={cn(
-        "bg-white rounded-xl shadow-sm",
+        // Lyra card: clean border
+        "bg-card rounded-none border border-border",
         paddingClasses[padding],
         className
       )}
@@ -64,23 +69,28 @@ export function Card({ children, className, padding = "md" }: CardProps) {
 interface StatCardProps {
   label: string;
   value: string | number;
-  color?: "default" | "green" | "blue" | "red";
+  color?: "default" | "success" | "warning" | "info" | "error";
 }
 
 export function StatCard({ label, value, color = "default" }: StatCardProps) {
   const colorClasses = {
-    default: "text-gray-900",
-    green: "text-green-600",
-    blue: "text-blue-600",
-    red: "text-red-600",
+    default: "border-border",
+    success: "border-status-success",
+    warning: "border-status-warning",
+    info: "border-status-info",
+    error: "border-status-error",
   };
 
   return (
-    <Card padding="sm">
-      <div className="text-xs sm:text-sm text-gray-500">{label}</div>
-      <div className={cn("text-lg sm:text-2xl font-bold mt-1", colorClasses[color])}>
+    <div className={cn(
+      // Lyra stat card: clean border, minimal
+      "rounded-none border p-4 sm:p-5 bg-card",
+      colorClasses[color]
+    )}>
+      <div className="text-xs sm:text-sm text-muted-foreground">{label}</div>
+      <div className="text-xl sm:text-2xl font-semibold text-foreground mt-1">
         {value}
       </div>
-    </Card>
+    </div>
   );
 }

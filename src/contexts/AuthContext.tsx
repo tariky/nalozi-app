@@ -1,5 +1,5 @@
-import { createContext, useContext, useState, useEffect, ReactNode } from "react";
-import { authApi } from "@/lib/api";
+import { createContext, useContext, useState, useEffect, type ReactNode } from "react";
+import { authApi, setCsrfToken } from "@/lib/api";
 import type { AuthUser } from "@/types";
 
 interface AuthContextType {
@@ -26,9 +26,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setLoading(true);
     const result = await authApi.me();
     if (result.success && result.data) {
-      setUser(result.data);
+      const { csrf_token, ...userData } = result.data as AuthUser & { csrf_token?: string };
+      setUser(userData);
+      if (csrf_token) {
+        setCsrfToken(csrf_token);
+      }
     } else {
       setUser(null);
+      setCsrfToken(null);
     }
     setLoading(false);
   };
@@ -36,7 +41,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const login = async (username: string, password: string) => {
     const result = await authApi.login(username, password);
     if (result.success && result.data) {
-      setUser(result.data);
+      const { csrf_token, ...userData } = result.data as AuthUser & { csrf_token?: string };
+      setUser(userData);
+      if (csrf_token) {
+        setCsrfToken(csrf_token);
+      }
       return { success: true };
     }
     return { success: false, error: result.error || "Greška pri prijavi" };
@@ -45,6 +54,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const logout = async () => {
     await authApi.logout();
     setUser(null);
+    setCsrfToken(null);
   };
 
   const value: AuthContextType = {

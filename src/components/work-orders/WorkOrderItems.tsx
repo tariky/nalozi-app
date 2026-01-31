@@ -110,7 +110,7 @@ export function WorkOrderItems({ workOrderId, items, onUpdate, readOnly }: WorkO
 
       {/* Items */}
       {items.length === 0 ? (
-        <div className="text-center py-6 sm:py-8 text-gray-500 text-sm">
+        <div className="text-center py-6 sm:py-8 text-muted-foreground text-sm">
           Nema stavki
         </div>
       ) : (
@@ -118,20 +118,20 @@ export function WorkOrderItems({ workOrderId, items, onUpdate, readOnly }: WorkO
           {/* Mobile: Compact list */}
           <div className="sm:hidden space-y-2">
             {items.map((item) => (
-              <div key={item.id} className="flex items-center gap-2 py-2 border-b border-gray-100 last:border-0">
+              <div key={item.id} className="flex items-center gap-2 py-2 border-b border-border last:border-0">
                 <span
-                  className={`shrink-0 w-1 h-8 rounded-full ${
-                    item.tip === "dio" ? "bg-blue-500" : "bg-green-500"
+                  className={`shrink-0 w-1 h-8 rounded-none ${
+                    item.tip === "dio" ? "bg-status-info" : "bg-status-success"
                   }`}
                 />
                 <div className="flex-1 min-w-0">
                   <div className="flex items-baseline gap-1">
                     <span className="font-medium text-sm truncate">{item.naziv}</span>
                     {item.kolicina !== 1 && (
-                      <span className="text-xs text-gray-500">×{item.kolicina}</span>
+                      <span className="text-xs text-muted-foreground">×{item.kolicina}</span>
                     )}
                   </div>
-                  <div className="text-xs text-gray-500">
+                  <div className="text-xs text-muted-foreground">
                     {formatCurrency(item.jedinicna_cijena)}
                   </div>
                 </div>
@@ -154,7 +154,7 @@ export function WorkOrderItems({ workOrderId, items, onUpdate, readOnly }: WorkO
                       className="h-7 w-7"
                       onClick={() => handleDelete(item.id)}
                     >
-                      <Trash2 className="h-3 w-3 text-red-500" />
+                      <Trash2 className="h-3 w-3 text-destructive" />
                     </Button>
                   </div>
                 )}
@@ -180,10 +180,10 @@ export function WorkOrderItems({ workOrderId, items, onUpdate, readOnly }: WorkO
                   <TableRow key={item.id}>
                     <TableCell>
                       <span
-                        className={`inline-flex px-2 py-1 rounded text-xs font-medium ${
+                        className={`inline-flex px-2 py-1 rounded-none text-xs font-medium ${
                           item.tip === "dio"
-                            ? "bg-blue-100 text-blue-800"
-                            : "bg-green-100 text-green-800"
+                            ? "bg-status-info/10 text-status-info"
+                            : "bg-status-success/10 text-status-success"
                         }`}
                       >
                         {getItemTypeLabel(item.tip)}
@@ -212,7 +212,7 @@ export function WorkOrderItems({ workOrderId, items, onUpdate, readOnly }: WorkO
                             size="icon"
                             onClick={() => handleDelete(item.id)}
                           >
-                            <Trash2 className="h-4 w-4 text-red-500" />
+                            <Trash2 className="h-4 w-4 text-destructive" />
                           </Button>
                         </div>
                       </TableCell>
@@ -229,11 +229,11 @@ export function WorkOrderItems({ workOrderId, items, onUpdate, readOnly }: WorkO
       {items.length > 0 && (
         <div className="flex justify-end">
           <div className="w-full sm:w-64 space-y-1 sm:space-y-2 text-sm">
-            <div className="flex justify-between text-gray-600">
+            <div className="flex justify-between text-muted-foreground">
               <span>Dijelovi:</span>
               <span>{formatCurrency(partsTotal)}</span>
             </div>
-            <div className="flex justify-between text-gray-600">
+            <div className="flex justify-between text-muted-foreground">
               <span>Usluge:</span>
               <span>{formatCurrency(servicesTotal)}</span>
             </div>

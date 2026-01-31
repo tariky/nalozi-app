@@ -1,8 +1,13 @@
 import { getDB } from '../db';
+import { requireAuth, requireAdmin, validateCsrf } from './auth';
 import type { Mechanic, MechanicForm } from '../types';
 
 // GET /api/mechanics - List all active mechanics
 export function getMechanics(req: Request): Response {
+  // Require authentication
+  const authResult = requireAuth(req);
+  if (authResult instanceof Response) return authResult;
+
   const db = getDB();
   const mechanics = db.query<Mechanic, []>(
     'SELECT * FROM mechanics WHERE aktivan = 1 ORDER BY ime, prezime'
@@ -12,6 +17,10 @@ export function getMechanics(req: Request): Response {
 
 // GET /api/mechanics/:id - Get single mechanic
 export function getMechanicById(req: Request): Response {
+  // Require authentication
+  const authResult = requireAuth(req);
+  if (authResult instanceof Response) return authResult;
+
   const url = new URL(req.url);
   const id = parseInt(url.pathname.split('/').pop() || '0');
 
@@ -27,8 +36,14 @@ export function getMechanicById(req: Request): Response {
   return Response.json(mechanic);
 }
 
-// POST /api/mechanics - Create mechanic
+// POST /api/mechanics - Create mechanic (admin only)
 export async function createMechanic(req: Request): Promise<Response> {
+  // Require admin + CSRF validation
+  const authResult = requireAdmin(req);
+  if (authResult instanceof Response) return authResult;
+  const csrfError = validateCsrf(req);
+  if (csrfError) return csrfError;
+
   const data: MechanicForm = await req.json();
 
   if (!data.ime || !data.prezime) {
@@ -47,8 +62,14 @@ export async function createMechanic(req: Request): Promise<Response> {
   return Response.json(mechanic, { status: 201 });
 }
 
-// PUT /api/mechanics/:id - Update mechanic
+// PUT /api/mechanics/:id - Update mechanic (admin only)
 export async function updateMechanic(req: Request): Promise<Response> {
+  // Require admin + CSRF validation
+  const authResult = requireAdmin(req);
+  if (authResult instanceof Response) return authResult;
+  const csrfError = validateCsrf(req);
+  if (csrfError) return csrfError;
+
   const url = new URL(req.url);
   const id = parseInt(url.pathname.split('/').pop() || '0');
   const data: MechanicForm = await req.json();
@@ -79,8 +100,14 @@ export async function updateMechanic(req: Request): Promise<Response> {
   return Response.json(mechanic);
 }
 
-// DELETE /api/mechanics/:id - Soft delete (deactivate)
+// DELETE /api/mechanics/:id - Soft delete (admin only)
 export function deleteMechanic(req: Request): Response {
+  // Require admin + CSRF validation
+  const authResult = requireAdmin(req);
+  if (authResult instanceof Response) return authResult;
+  const csrfError = validateCsrf(req);
+  if (csrfError) return csrfError;
+
   const url = new URL(req.url);
   const id = parseInt(url.pathname.split('/').pop() || '0');
 

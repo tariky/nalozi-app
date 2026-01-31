@@ -146,7 +146,7 @@ const outputTable = result.outputs.map(output => ({
 console.table(outputTable);
 
 // Copy PWA static files
-const pwaFiles = ["manifest.json", "sw.js", "icon-192.svg", "icon-512.svg"];
+const pwaFiles = ["manifest.json", "sw.js", "icon-192.svg", "icon-512.svg", "logo.svg"];
 console.log("📦 Copying PWA files...");
 for (const file of pwaFiles) {
   const src = path.join("src", file);

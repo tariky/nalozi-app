@@ -84,7 +84,7 @@ export function CustomerList({ onView }: CustomerListProps) {
 
       {/* Search */}
       <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
         <Input
           placeholder="Pretraži po imenu, firmi ili telefonu..."
           value={searchQuery}
@@ -103,7 +103,7 @@ export function CustomerList({ onView }: CustomerListProps) {
           </div>
         ) : !data || data.items.length === 0 ? (
           <div className="p-8 sm:p-12 text-center">
-            <p className="text-gray-500 mb-4">
+            <p className="text-muted-foreground mb-4">
               {searchQuery ? "Nema rezultata pretrage" : "Nema klijenata"}
             </p>
             {!searchQuery && (
@@ -131,7 +131,7 @@ export function CustomerList({ onView }: CustomerListProps) {
                   {data.items.map((customer) => (
                     <TableRow
                       key={customer.id}
-                      className="cursor-pointer hover:bg-gray-50"
+                      className="cursor-pointer hover:bg-muted/50"
                       onClick={() => onView(customer.id)}
                     >
                       <TableCell className="font-medium">
@@ -171,19 +171,19 @@ export function CustomerList({ onView }: CustomerListProps) {
               {data.items.map((customer) => (
                 <div
                   key={customer.id}
-                  className="p-4 active:bg-gray-50"
+                  className="p-4 active:bg-muted/50"
                   onClick={() => onView(customer.id)}
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0 flex-1">
-                      <div className="font-semibold text-gray-900">
+                      <div className="font-semibold text-foreground">
                         {customer.ime} {customer.prezime}
                       </div>
                       {customer.naziv_firme && (
-                        <div className="text-sm text-gray-500">{customer.naziv_firme}</div>
+                        <div className="text-sm text-muted-foreground">{customer.naziv_firme}</div>
                       )}
                       {customer.telefon && (
-                        <div className="text-sm text-gray-500 mt-1">{customer.telefon}</div>
+                        <div className="text-sm text-muted-foreground mt-1">{customer.telefon}</div>
                       )}
                     </div>
                     <Button
@@ -202,7 +202,7 @@ export function CustomerList({ onView }: CustomerListProps) {
             {/* Pagination */}
             {data.totalPages > 1 && (
               <div className="flex items-center justify-between px-4 py-3 border-t">
-                <div className="text-xs sm:text-sm text-gray-500">
+                <div className="text-xs sm:text-sm text-muted-foreground">
                   Str. {data.page}/{data.totalPages} ({data.total})
                 </div>
                 <div className="flex gap-2">

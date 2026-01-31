@@ -1,5 +1,5 @@
 import { getDB, generateWorkOrderNumber } from '../db';
-import { getCurrentUser } from './auth';
+import { getCurrentUser, requireAuth, validateCsrf } from './auth';
 import type { WorkOrder, WorkOrderForm, WorkOrderItem, WorkOrderItemForm, Customer, Mechanic, TimeEntry } from '../types';
 
 // Helper to get work order with related data
@@ -51,6 +51,10 @@ function recalculateTotal(workOrderId: number): void {
 
 // GET /api/work-orders - List with pagination
 export function getWorkOrders(req: Request): Response {
+  // Require authentication
+  const authResult = requireAuth(req);
+  if (authResult instanceof Response) return authResult;
+
   const url = new URL(req.url);
   const page = parseInt(url.searchParams.get('page') || '1');
   const limit = parseInt(url.searchParams.get('limit') || '20');
@@ -58,7 +62,7 @@ export function getWorkOrders(req: Request): Response {
   const offset = (page - 1) * limit;
 
   // Get current user to check role
-  const currentUser = getCurrentUser(req);
+  const currentUser = authResult;
 
   const db = getDB();
 
@@ -124,6 +128,10 @@ export function getWorkOrders(req: Request): Response {
 
 // GET /api/work-orders/search - Search by VIN, plates, customer
 export function searchWorkOrders(req: Request): Response {
+  // Require authentication
+  const authResult = requireAuth(req);
+  if (authResult instanceof Response) return authResult;
+
   const url = new URL(req.url);
   const query = url.searchParams.get('q') || '';
 
@@ -132,7 +140,7 @@ export function searchWorkOrders(req: Request): Response {
   }
 
   // Get current user to check role
-  const currentUser = getCurrentUser(req);
+  const currentUser = authResult;
 
   const db = getDB();
   const searchPattern = `%${query}%`;
@@ -174,20 +182,37 @@ export function searchWorkOrders(req: Request): Response {
 
 // GET /api/work-orders/by-customer/:customerId - Get work orders for a customer
 export function getWorkOrdersByCustomer(req: Request): Response {
+  // Require authentication
+  const authResult = requireAuth(req);
+  if (authResult instanceof Response) return authResult;
+
   const url = new URL(req.url);
   const customerId = parseInt(url.pathname.split('/').pop() || '0');
 
   const db = getDB();
 
-  const workOrders = db.query<WorkOrder, [number]>(
-    `SELECT * FROM work_orders WHERE customer_id = ? ORDER BY created_at DESC`
-  ).all(customerId);
+  // If mechanic, only show their work orders for this customer
+  let query = 'SELECT * FROM work_orders WHERE customer_id = ?';
+  const params: (number)[] = [customerId];
+
+  if (authResult.role === 'mechanic' && authResult.mechanic_id) {
+    query += ' AND mechanic_id = ?';
+    params.push(authResult.mechanic_id);
+  }
+
+  query += ' ORDER BY created_at DESC';
+
+  const workOrders = db.query<WorkOrder, (number)[]>(query).all(...params);
 
   return Response.json(workOrders);
 }
 
 // GET /api/work-orders/:id - Get single with items
 export function getWorkOrderById(req: Request): Response {
+  // Require authentication
+  const authResult = requireAuth(req);
+  if (authResult instanceof Response) return authResult;
+
   const url = new URL(req.url);
   const id = parseInt(url.pathname.split('/').pop() || '0');
 
@@ -198,9 +223,8 @@ export function getWorkOrderById(req: Request): Response {
   }
 
   // Check if mechanic can view this work order
-  const currentUser = getCurrentUser(req);
-  if (currentUser && currentUser.role === 'mechanic' && currentUser.mechanic_id) {
-    if (workOrder.mechanic_id !== currentUser.mechanic_id) {
+  if (authResult.role === 'mechanic' && authResult.mechanic_id) {
+    if (workOrder.mechanic_id !== authResult.mechanic_id) {
       return Response.json({ message: 'Nemate pristup ovom radnom nalogu' }, { status: 403 });
     }
   }
@@ -210,6 +234,12 @@ export function getWorkOrderById(req: Request): Response {
 
 // POST /api/work-orders - Create work order
 export async function createWorkOrder(req: Request): Promise<Response> {
+  // Require authentication + CSRF validation
+  const authResult = requireAuth(req);
+  if (authResult instanceof Response) return authResult;
+  const csrfError = validateCsrf(req);
+  if (csrfError) return csrfError;
+
   const data: WorkOrderForm = await req.json();
 
   if (!data.customer_id || !data.registarske_tablice || !data.marka_vozila || !data.model_vozila) {
@@ -247,6 +277,12 @@ export async function createWorkOrder(req: Request): Promise<Response> {
 
 // PUT /api/work-orders/:id - Update work order
 export async function updateWorkOrder(req: Request): Promise<Response> {
+  // Require authentication + CSRF validation
+  const authResult = requireAuth(req);
+  if (authResult instanceof Response) return authResult;
+  const csrfError = validateCsrf(req);
+  if (csrfError) return csrfError;
+
   const url = new URL(req.url);
   const id = parseInt(url.pathname.split('/').pop() || '0');
   const data: Partial<WorkOrderForm> = await req.json();
@@ -260,6 +296,13 @@ export async function updateWorkOrder(req: Request): Promise<Response> {
 
   if (!existing) {
     return Response.json({ message: 'Radni nalog nije pronađen' }, { status: 404 });
+  }
+
+  // Check authorization: admin can update any, mechanic can only update their own
+  if (authResult.role === 'mechanic' && authResult.mechanic_id) {
+    if (existing.mechanic_id !== authResult.mechanic_id) {
+      return Response.json({ message: 'Nemate pristup ovom radnom nalogu' }, { status: 403 });
+    }
   }
 
   // Build update query dynamically
@@ -337,6 +380,12 @@ export async function updateWorkOrder(req: Request): Promise<Response> {
 
 // DELETE /api/work-orders/:id - Delete work order
 export function deleteWorkOrder(req: Request): Response {
+  // Require authentication + CSRF validation
+  const authResult = requireAuth(req);
+  if (authResult instanceof Response) return authResult;
+  const csrfError = validateCsrf(req);
+  if (csrfError) return csrfError;
+
   const url = new URL(req.url);
   const id = parseInt(url.pathname.split('/').pop() || '0');
 
@@ -349,6 +398,13 @@ export function deleteWorkOrder(req: Request): Response {
 
   if (!existing) {
     return Response.json({ message: 'Radni nalog nije pronađen' }, { status: 404 });
+  }
+
+  // Check authorization: admin can delete any, mechanic can only delete their own
+  if (authResult.role === 'mechanic' && authResult.mechanic_id) {
+    if (existing.mechanic_id !== authResult.mechanic_id) {
+      return Response.json({ message: 'Nemate pristup ovom radnom nalogu' }, { status: 403 });
+    }
   }
 
   // Delete items first (CASCADE should handle this, but explicit is safer)
@@ -366,6 +422,12 @@ export function deleteWorkOrder(req: Request): Response {
 
 // POST /api/work-orders/:id/items - Add item
 export async function addWorkOrderItem(req: Request): Promise<Response> {
+  // Require authentication + CSRF validation
+  const authResult = requireAuth(req);
+  if (authResult instanceof Response) return authResult;
+  const csrfError = validateCsrf(req);
+  if (csrfError) return csrfError;
+
   const url = new URL(req.url);
   const pathParts = url.pathname.split('/');
   const workOrderId = parseInt(pathParts[pathParts.length - 2]);
@@ -384,6 +446,13 @@ export async function addWorkOrderItem(req: Request): Promise<Response> {
 
   if (!workOrder) {
     return Response.json({ message: 'Radni nalog nije pronađen' }, { status: 404 });
+  }
+
+  // Check authorization
+  if (authResult.role === 'mechanic' && authResult.mechanic_id) {
+    if (workOrder.mechanic_id !== authResult.mechanic_id) {
+      return Response.json({ message: 'Nemate pristup ovom radnom nalogu' }, { status: 403 });
+    }
   }
 
   const kolicina = data.kolicina || 1;
@@ -406,6 +475,12 @@ export async function addWorkOrderItem(req: Request): Promise<Response> {
 
 // PUT /api/work-orders/:orderId/items/:itemId - Update item
 export async function updateWorkOrderItem(req: Request): Promise<Response> {
+  // Require authentication + CSRF validation
+  const authResult = requireAuth(req);
+  if (authResult instanceof Response) return authResult;
+  const csrfError = validateCsrf(req);
+  if (csrfError) return csrfError;
+
   const url = new URL(req.url);
   const pathParts = url.pathname.split('/');
   const itemId = parseInt(pathParts[pathParts.length - 1]);
@@ -413,6 +488,22 @@ export async function updateWorkOrderItem(req: Request): Promise<Response> {
   const data: WorkOrderItemForm = await req.json();
 
   const db = getDB();
+
+  // Check if work order exists and user has access
+  const workOrder = db.query<WorkOrder, [number]>(
+    'SELECT * FROM work_orders WHERE id = ?'
+  ).get(workOrderId);
+
+  if (!workOrder) {
+    return Response.json({ message: 'Radni nalog nije pronađen' }, { status: 404 });
+  }
+
+  // Check authorization
+  if (authResult.role === 'mechanic' && authResult.mechanic_id) {
+    if (workOrder.mechanic_id !== authResult.mechanic_id) {
+      return Response.json({ message: 'Nemate pristup ovom radnom nalogu' }, { status: 403 });
+    }
+  }
 
   // Check if item exists
   const existing = db.query<WorkOrderItem, [number, number]>(
@@ -444,12 +535,34 @@ export async function updateWorkOrderItem(req: Request): Promise<Response> {
 
 // DELETE /api/work-orders/:orderId/items/:itemId - Delete item
 export function deleteWorkOrderItem(req: Request): Response {
+  // Require authentication + CSRF validation
+  const authResult = requireAuth(req);
+  if (authResult instanceof Response) return authResult;
+  const csrfError = validateCsrf(req);
+  if (csrfError) return csrfError;
+
   const url = new URL(req.url);
   const pathParts = url.pathname.split('/');
   const itemId = parseInt(pathParts[pathParts.length - 1]);
   const workOrderId = parseInt(pathParts[pathParts.length - 3]);
 
   const db = getDB();
+
+  // Check if work order exists and user has access
+  const workOrder = db.query<WorkOrder, [number]>(
+    'SELECT * FROM work_orders WHERE id = ?'
+  ).get(workOrderId);
+
+  if (!workOrder) {
+    return Response.json({ message: 'Radni nalog nije pronađen' }, { status: 404 });
+  }
+
+  // Check authorization
+  if (authResult.role === 'mechanic' && authResult.mechanic_id) {
+    if (workOrder.mechanic_id !== authResult.mechanic_id) {
+      return Response.json({ message: 'Nemate pristup ovom radnom nalogu' }, { status: 403 });
+    }
+  }
 
   // Check if item exists
   const existing = db.query<WorkOrderItem, [number, number]>(
@@ -468,4 +581,322 @@ export function deleteWorkOrderItem(req: Request): Response {
   recalculateTotal(workOrderId);
 
   return Response.json({ message: 'Stavka obrisana' });
+}
+
+// GET /api/work-orders/export/csv - Export all work orders as CSV (admin only)
+export function exportWorkOrdersCSV(req: Request): Response {
+  // Require admin access
+  const authResult = requireAuth(req);
+  if (authResult instanceof Response) return authResult;
+  if (authResult.role !== 'admin') {
+    return Response.json({ message: 'Nemate pristup' }, { status: 403 });
+  }
+
+  const db = getDB();
+
+  // Get all work orders with full details
+  const workOrders = db.query<WorkOrder & {
+    customer_ime: string;
+    customer_prezime: string;
+    customer_firma: string | null;
+    customer_telefon: string | null;
+    mechanic_ime: string | null;
+    mechanic_prezime: string | null;
+  }, []>(
+    `SELECT wo.*,
+            c.ime as customer_ime, c.prezime as customer_prezime, c.naziv_firme as customer_firma, c.telefon as customer_telefon,
+            m.ime as mechanic_ime, m.prezime as mechanic_prezime
+     FROM work_orders wo
+     LEFT JOIN customers c ON wo.customer_id = c.id
+     LEFT JOIN mechanics m ON wo.mechanic_id = m.id
+     ORDER BY wo.created_at DESC`
+  ).all();
+
+  // CSV headers
+  const headers = [
+    'broj_naloga',
+    'status',
+    'created_at',
+    'closed_at',
+    'registarske_tablice',
+    'vin_broj',
+    'marka_vozila',
+    'model_vozila',
+    'motor',
+    'opis_kvara',
+    'napomena',
+    'ukupna_cijena',
+    'customer_ime',
+    'customer_prezime',
+    'customer_firma',
+    'customer_telefon',
+    'mechanic_ime',
+    'mechanic_prezime',
+    'items_json',
+    'time_entries_json'
+  ];
+
+  // Escape CSV field
+  const escapeCSV = (value: string | number | null): string => {
+    if (value === null || value === undefined) return '';
+    const str = String(value);
+    if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+      return `"${str.replace(/"/g, '""')}"`;
+    }
+    return str;
+  };
+
+  // Build CSV rows
+  const rows: string[] = [];
+  rows.push(headers.join(','));
+
+  for (const wo of workOrders) {
+    // Get items for this work order
+    const items = db.query<WorkOrderItem, [number]>(
+      'SELECT tip, naziv, kolicina, jedinicna_cijena, ukupna_cijena FROM work_order_items WHERE work_order_id = ?'
+    ).all(wo.id);
+
+    // Get time entries for this work order
+    const timeEntries = db.query<{ started_at: string; ended_at: string | null; mechanic_ime: string | null; mechanic_prezime: string | null }, [number]>(
+      `SELECT te.started_at, te.ended_at, m.ime as mechanic_ime, m.prezime as mechanic_prezime
+       FROM time_entries te
+       LEFT JOIN mechanics m ON te.mechanic_id = m.id
+       WHERE te.work_order_id = ?`
+    ).all(wo.id);
+
+    const row = [
+      escapeCSV(wo.broj_naloga),
+      escapeCSV(wo.status),
+      escapeCSV(wo.created_at),
+      escapeCSV(wo.closed_at),
+      escapeCSV(wo.registarske_tablice),
+      escapeCSV(wo.vin_broj),
+      escapeCSV(wo.marka_vozila),
+      escapeCSV(wo.model_vozila),
+      escapeCSV(wo.motor),
+      escapeCSV(wo.opis_kvara),
+      escapeCSV(wo.napomena),
+      escapeCSV(wo.ukupna_cijena),
+      escapeCSV(wo.customer_ime),
+      escapeCSV(wo.customer_prezime),
+      escapeCSV(wo.customer_firma),
+      escapeCSV(wo.customer_telefon),
+      escapeCSV(wo.mechanic_ime),
+      escapeCSV(wo.mechanic_prezime),
+      escapeCSV(JSON.stringify(items)),
+      escapeCSV(JSON.stringify(timeEntries))
+    ];
+
+    rows.push(row.join(','));
+  }
+
+  const csvContent = rows.join('\n');
+
+  return new Response(csvContent, {
+    headers: {
+      'Content-Type': 'text/csv; charset=utf-8',
+      'Content-Disposition': `attachment; filename="work-orders-backup-${new Date().toISOString().split('T')[0]}.csv"`
+    }
+  });
+}
+
+// POST /api/work-orders/import/csv - Import work orders from CSV (admin only)
+export async function importWorkOrdersCSV(req: Request): Promise<Response> {
+  // Require admin access + CSRF validation
+  const authResult = requireAuth(req);
+  if (authResult instanceof Response) return authResult;
+  if (authResult.role !== 'admin') {
+    return Response.json({ message: 'Nemate pristup' }, { status: 403 });
+  }
+  const csrfError = validateCsrf(req);
+  if (csrfError) return csrfError;
+
+  const db = getDB();
+  const formData = await req.formData();
+  const file = formData.get('file') as File;
+
+  if (!file) {
+    return Response.json({ message: 'Nema fajla za import' }, { status: 400 });
+  }
+
+  const csvText = await file.text();
+  const lines = csvText.split('\n').filter(line => line.trim());
+
+  if (lines.length < 2) {
+    return Response.json({ message: 'CSV fajl je prazan ili nevalidan' }, { status: 400 });
+  }
+
+  // Parse headers
+  const headers = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, ''));
+
+  const results = {
+    imported: 0,
+    skipped: 0,
+    errors: [] as string[]
+  };
+
+  // Start transaction
+  db.transaction(() => {
+    for (let i = 1; i < lines.length; i++) {
+      try {
+        const line = lines[i];
+        const values = parseCSVLine(line);
+
+        if (values.length !== headers.length) {
+          results.errors.push(`Red ${i + 1}: Nevalidan broj kolona`);
+          continue;
+        }
+
+        const data: Record<string, string> = {};
+        headers.forEach((header, index) => {
+          data[header] = values[index] || '';
+        });
+
+        // Check if work order with this number already exists
+        const existingOrder = db.query<{ id: number }, [string]>(
+          'SELECT id FROM work_orders WHERE broj_naloga = ?'
+        ).get(data.broj_naloga);
+
+        if (existingOrder) {
+          results.skipped++;
+          continue;
+        }
+
+        // Create or find customer
+        let customerId: number;
+        const existingCustomer = db.query<{ id: number }, [string, string, string | null]>(
+          'SELECT id FROM customers WHERE ime = ? AND prezime = ? AND (naziv_firme = ? OR (naziv_firme IS NULL AND ? IS NULL))'
+        ).get(data.customer_ime, data.customer_prezime, data.customer_firma || null, data.customer_firma || null);
+
+        if (existingCustomer) {
+          customerId = existingCustomer.id;
+        } else {
+          const customerResult = db.query<{ id: number }, [string, string, string | null, string | null]>(
+            'INSERT INTO customers (ime, prezime, naziv_firme, telefon) VALUES (?, ?, ?, ?) RETURNING id'
+          ).get(data.customer_ime, data.customer_prezime, data.customer_firma || null, data.customer_telefon || null);
+          customerId = customerResult!.id;
+        }
+
+        // Create or find mechanic if specified
+        let mechanicId: number | null = null;
+        if (data.mechanic_ime && data.mechanic_prezime) {
+          const existingMechanic = db.query<{ id: number }, [string, string]>(
+            'SELECT id FROM mechanics WHERE ime = ? AND prezime = ?'
+          ).get(data.mechanic_ime, data.mechanic_prezime);
+
+          if (existingMechanic) {
+            mechanicId = existingMechanic.id;
+          } else {
+            const mechanicResult = db.query<{ id: number }, [string, string]>(
+              'INSERT INTO mechanics (ime, prezime, aktivan) VALUES (?, ?, 1) RETURNING id'
+            ).get(data.mechanic_ime, data.mechanic_prezime);
+            mechanicId = mechanicResult!.id;
+          }
+        }
+
+        // Create work order
+        const workOrderResult = db.query<{ id: number }, [string, number, string, string | null, string, string, string | null, number | null, string | null, string | null, string, string, string | null]>(
+          `INSERT INTO work_orders
+           (broj_naloga, customer_id, registarske_tablice, vin_broj, marka_vozila, model_vozila, motor, mechanic_id, opis_kvara, napomena, status, created_at, closed_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`
+        ).get(
+          data.broj_naloga,
+          customerId,
+          data.registarske_tablice,
+          data.vin_broj || null,
+          data.marka_vozila,
+          data.model_vozila,
+          data.motor || null,
+          mechanicId,
+          data.opis_kvara || null,
+          data.napomena || null,
+          data.status || 'otvoren',
+          data.created_at || new Date().toISOString(),
+          data.closed_at || null
+        );
+
+        const workOrderId = workOrderResult!.id;
+
+        // Add items if present
+        if (data.items_json) {
+          try {
+            const items = JSON.parse(data.items_json);
+            for (const item of items) {
+              db.query<null, [number, string, string, number, number, number]>(
+                'INSERT INTO work_order_items (work_order_id, tip, naziv, kolicina, jedinicna_cijena, ukupna_cijena) VALUES (?, ?, ?, ?, ?, ?)'
+              ).run(workOrderId, item.tip, item.naziv, item.kolicina, item.jedinicna_cijena, item.ukupna_cijena);
+            }
+          } catch (e) {
+            // Ignore items parsing errors
+          }
+        }
+
+        // Add time entries if present
+        if (data.time_entries_json) {
+          try {
+            const entries = JSON.parse(data.time_entries_json);
+            for (const entry of entries) {
+              // Find or create mechanic for time entry
+              let entryMechanicId: number | null = mechanicId;
+              if (entry.mechanic_ime && entry.mechanic_prezime) {
+                const mech = db.query<{ id: number }, [string, string]>(
+                  'SELECT id FROM mechanics WHERE ime = ? AND prezime = ?'
+                ).get(entry.mechanic_ime, entry.mechanic_prezime);
+                if (mech) {
+                  entryMechanicId = mech.id;
+                }
+              }
+
+              db.query<null, [number, number | null, string, string | null]>(
+                'INSERT INTO time_entries (work_order_id, mechanic_id, started_at, ended_at) VALUES (?, ?, ?, ?)'
+              ).run(workOrderId, entryMechanicId, entry.started_at, entry.ended_at || null);
+            }
+          } catch (e) {
+            // Ignore time entries parsing errors
+          }
+        }
+
+        // Recalculate total for the work order
+        recalculateTotal(workOrderId);
+
+        results.imported++;
+      } catch (error) {
+        results.errors.push(`Red ${i + 1}: ${error instanceof Error ? error.message : 'Greška'}`);
+      }
+    }
+  })();
+
+  return Response.json({
+    message: `Import završen. Uvezeno: ${results.imported}, Preskočeno: ${results.skipped}`,
+    ...results
+  });
+}
+
+// Helper function to parse CSV line respecting quotes
+function parseCSVLine(line: string): string[] {
+  const values: string[] = [];
+  let current = '';
+  let inQuotes = false;
+
+  for (let i = 0; i < line.length; i++) {
+    const char = line[i];
+    const nextChar = line[i + 1];
+
+    if (char === '"') {
+      if (inQuotes && nextChar === '"') {
+        current += '"';
+        i++; // Skip next quote
+      } else {
+        inQuotes = !inQuotes;
+      }
+    } else if (char === ',' && !inQuotes) {
+      values.push(current.trim());
+      current = '';
+    } else {
+      current += char;
+    }
+  }
+
+  values.push(current.trim());
+  return values.map(v => v.replace(/^"|"$/g, '').replace(/""/g, '"'));
 }

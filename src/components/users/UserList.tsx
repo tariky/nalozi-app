@@ -146,7 +146,7 @@ export function UserList() {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
-        <div className="text-gray-500">Učitavanje...</div>
+        <div className="text-muted-foreground">Učitavanje...</div>
       </div>
     );
   }
@@ -155,7 +155,7 @@ export function UserList() {
     <div className="space-y-4 sm:space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <h1 className="text-xl sm:text-2xl font-semibold text-gray-900">Korisnici</h1>
+        <h1 className="text-xl sm:text-2xl font-semibold text-foreground">Korisnici</h1>
         <Button onClick={() => setShowCreateDialog(true)}>
           <Plus className="h-4 w-4 mr-2" />
           <span className="hidden sm:inline">Novi korisnik</span>
@@ -164,22 +164,22 @@ export function UserList() {
       </div>
 
       {/* Users list */}
-      <div className="bg-white rounded-xl shadow-sm overflow-hidden">
-        <div className="divide-y divide-gray-100">
+      <div className="bg-card rounded-none border border-border overflow-hidden">
+        <div className="divide-y divide-border">
           {users.map((user) => (
             <div
               key={user.id}
-              className="flex items-center justify-between p-4 hover:bg-gray-50"
+              className="flex items-center justify-between p-4 hover:bg-muted/50"
             >
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
-                  <span className="font-medium text-gray-900">{user.username}</span>
+                  <span className="font-medium text-foreground">{user.username}</span>
                   <Badge variant={user.role === 'admin' ? 'default' : 'secondary'}>
                     {user.role === 'admin' ? 'Administrator' : 'Mehaničar'}
                   </Badge>
                 </div>
                 {user.mechanic && (
-                  <p className="text-sm text-gray-500 mt-1">
+                  <p className="text-sm text-muted-foreground mt-1">
                     {user.mechanic.ime} {user.mechanic.prezime}
                   </p>
                 )}
@@ -201,7 +201,7 @@ export function UserList() {
                     onClick={() => handleDelete(user.id)}
                     title="Obriši"
                   >
-                    <Trash2 className="h-4 w-4 text-red-500" />
+                    <Trash2 className="h-4 w-4 text-destructive" />
                   </Button>
                 )}
               </div>
@@ -209,7 +209,7 @@ export function UserList() {
           ))}
 
           {users.length === 0 && (
-            <div className="text-center py-12 text-gray-500">
+            <div className="text-center py-12 text-muted-foreground">
               Nema korisnika
             </div>
           )}
@@ -272,7 +272,7 @@ export function UserList() {
                       </SelectItem>
                     ))}
                     {availableMechanics.length === 0 && (
-                      <div className="text-sm text-gray-500 p-2">
+                      <div className="text-sm text-muted-foreground p-2">
                         Nema dostupnih mehaničara (svi imaju račun)
                       </div>
                     )}
@@ -282,7 +282,7 @@ export function UserList() {
             )}
 
             {formError && (
-              <div className="text-sm text-red-600 bg-red-50 p-3 rounded-lg">
+              <div className="text-sm text-destructive bg-destructive/10 p-3 rounded-none border border-border">
                 {formError}
               </div>
             )}
@@ -322,7 +322,7 @@ export function UserList() {
             </div>
 
             {formError && (
-              <div className="text-sm text-red-600 bg-red-50 p-3 rounded-lg">
+              <div className="text-sm text-destructive bg-destructive/10 p-3 rounded-none border border-border">
                 {formError}
               </div>
             )}

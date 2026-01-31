@@ -1,8 +1,13 @@
 import { getDB } from '../db';
+import { requireAuth, validateCsrf } from './auth';
 import type { Customer, CustomerForm } from '../types';
 
 // GET /api/customers - List customers with optional search and pagination
 export function getCustomers(req: Request): Response {
+  // Require authentication
+  const authResult = requireAuth(req);
+  if (authResult instanceof Response) return authResult;
+
   const url = new URL(req.url);
   const search = url.searchParams.get('search');
   const page = parseInt(url.searchParams.get('page') || '1');
@@ -48,6 +53,10 @@ export function getCustomers(req: Request): Response {
 
 // GET /api/customers/:id - Get single customer
 export function getCustomerById(req: Request): Response {
+  // Require authentication
+  const authResult = requireAuth(req);
+  if (authResult instanceof Response) return authResult;
+
   const url = new URL(req.url);
   const id = parseInt(url.pathname.split('/').pop() || '0');
 
@@ -65,6 +74,12 @@ export function getCustomerById(req: Request): Response {
 
 // POST /api/customers - Create customer
 export async function createCustomer(req: Request): Promise<Response> {
+  // Require authentication + CSRF validation
+  const authResult = requireAuth(req);
+  if (authResult instanceof Response) return authResult;
+  const csrfError = validateCsrf(req);
+  if (csrfError) return csrfError;
+
   const data: CustomerForm = await req.json();
 
   if (!data.ime || !data.prezime) {
@@ -92,6 +107,12 @@ export async function createCustomer(req: Request): Promise<Response> {
 
 // PUT /api/customers/:id - Update customer
 export async function updateCustomer(req: Request): Promise<Response> {
+  // Require authentication + CSRF validation
+  const authResult = requireAuth(req);
+  if (authResult instanceof Response) return authResult;
+  const csrfError = validateCsrf(req);
+  if (csrfError) return csrfError;
+
   const url = new URL(req.url);
   const id = parseInt(url.pathname.split('/').pop() || '0');
   const data: CustomerForm = await req.json();

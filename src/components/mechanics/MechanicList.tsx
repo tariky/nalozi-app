@@ -82,7 +82,7 @@ export function MechanicList() {
           </div>
         ) : mechanics.length === 0 ? (
           <div className="p-8 sm:p-12 text-center">
-            <p className="text-gray-500 mb-4">Nema mehaničara</p>
+            <p className="text-muted-foreground mb-4">Nema mehaničara</p>
             <Button onClick={openNewForm} variant="outline">
               <Plus className="h-4 w-4 mr-2" />
               Dodaj prvog mehaničara
@@ -121,7 +121,7 @@ export function MechanicList() {
                             size="icon"
                             onClick={() => handleDelete(mechanic.id)}
                           >
-                            <Trash2 className="h-4 w-4 text-red-500" />
+                            <Trash2 className="h-4 w-4 text-destructive" />
                           </Button>
                         </div>
                       </TableCell>
@@ -137,11 +137,11 @@ export function MechanicList() {
                 <div key={mechanic.id} className="p-4">
                   <div className="flex items-center justify-between gap-3">
                     <div className="min-w-0 flex-1">
-                      <div className="font-semibold text-gray-900">
+                      <div className="font-semibold text-foreground">
                         {mechanic.ime} {mechanic.prezime}
                       </div>
                       {mechanic.telefon && (
-                        <div className="text-sm text-gray-500">{mechanic.telefon}</div>
+                        <div className="text-sm text-muted-foreground">{mechanic.telefon}</div>
                       )}
                     </div>
                     <div className="flex gap-1">
@@ -159,7 +159,7 @@ export function MechanicList() {
                         className="h-9 w-9"
                         onClick={() => handleDelete(mechanic.id)}
                       >
-                        <Trash2 className="h-4 w-4 text-red-500" />
+                        <Trash2 className="h-4 w-4 text-destructive" />
                       </Button>
                     </div>
                   </div>

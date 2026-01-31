@@ -2,10 +2,10 @@ import { useState, useEffect } from "react";
 import { ArrowLeft, Pencil, FileDown, Trash2, CheckCircle, Wrench, StickyNote } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
 import { WorkOrderItems } from "./WorkOrderItems";
 import { TimeTracker } from "./TimeTracker";
 import { workOrdersApi } from "@/lib/api";
+import { invalidateWorkOrdersCache } from "./WorkOrderList";
 import { formatDate, formatCurrency, getStatusLabel, getStatusColor } from "@/lib/formatters";
 import type { WorkOrder } from "@/types";
 
@@ -43,6 +43,7 @@ export function WorkOrderDetail({
   const handleDelete = async () => {
     if (confirm("Da li ste sigurni da želite obrisati ovaj radni nalog?")) {
       await workOrdersApi.delete(workOrderId);
+      invalidateWorkOrdersCache();
       onDelete();
     }
   };
@@ -50,6 +51,7 @@ export function WorkOrderDetail({
   const handleClose = async () => {
     if (confirm("Da li ste sigurni da želite zatvoriti ovaj radni nalog?")) {
       await workOrdersApi.update(workOrderId, { status: "zavrsen" });
+      invalidateWorkOrdersCache();
       loadWorkOrder();
     }
   };
@@ -57,7 +59,7 @@ export function WorkOrderDetail({
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
-        <div className="text-gray-500">Učitavanje...</div>
+        <div className="text-muted-foreground">Učitavanje...</div>
       </div>
     );
   }
@@ -65,7 +67,7 @@ export function WorkOrderDetail({
   if (!workOrder) {
     return (
       <div className="text-center py-12">
-        <p className="text-gray-500">Radni nalog nije pronađen</p>
+        <p className="text-muted-foreground">Radni nalog nije pronađen</p>
         <Button variant="outline" onClick={onBack} className="mt-4">
           Nazad
         </Button>
@@ -83,14 +85,14 @@ export function WorkOrderDetail({
           </Button>
           <div className="min-w-0">
             <div className="flex items-center gap-2">
-              <h1 className="text-lg sm:text-2xl font-semibold text-gray-900 truncate">
+              <h1 className="text-lg sm:text-2xl font-semibold text-foreground truncate">
                 {workOrder.broj_naloga}
               </h1>
               <Badge className={`${getStatusColor(workOrder.status)} text-xs shrink-0`}>
                 {getStatusLabel(workOrder.status)}
               </Badge>
             </div>
-            <p className="text-xs sm:text-sm text-gray-500">{formatDate(workOrder.created_at)}</p>
+            <p className="text-xs sm:text-sm text-muted-foreground">{formatDate(workOrder.created_at)}</p>
           </div>
         </div>
 
@@ -104,11 +106,11 @@ export function WorkOrderDetail({
           </Button>
           {workOrder.status !== "zavrsen" && (
             <Button variant="ghost" size="icon" className="h-8 w-8" onClick={handleClose}>
-              <CheckCircle className="h-4 w-4 text-green-600" />
+              <CheckCircle className="h-4 w-4 text-status-success" />
             </Button>
           )}
           <Button variant="ghost" size="icon" className="h-8 w-8" onClick={handleDelete}>
-            <Trash2 className="h-4 w-4 text-red-500" />
+            <Trash2 className="h-4 w-4 text-destructive" />
           </Button>
         </div>
 
@@ -124,12 +126,12 @@ export function WorkOrderDetail({
           </Button>
           {workOrder.status !== "zavrsen" && (
             <Button variant="outline" onClick={handleClose}>
-              <CheckCircle className="h-4 w-4 mr-2 text-green-600" />
+              <CheckCircle className="h-4 w-4 mr-2 text-status-success" />
               Zatvori
             </Button>
           )}
           <Button variant="outline" size="icon" onClick={handleDelete}>
-            <Trash2 className="h-4 w-4 text-red-500" />
+            <Trash2 className="h-4 w-4 text-destructive" />
           </Button>
         </div>
       </div>
@@ -138,23 +140,23 @@ export function WorkOrderDetail({
       {(workOrder.opis_kvara || workOrder.napomena) && (
         <div className="space-y-2">
           {workOrder.opis_kvara && (
-            <div className="bg-blue-50 border-l-4 border-blue-500 p-3 sm:p-4 rounded-r-lg">
+            <div className="bg-status-info/10 border-l-4 border-status-info p-3 sm:p-4 rounded-none">
               <div className="flex items-start gap-3">
-                <Wrench className="h-5 w-5 text-blue-600 shrink-0 mt-0.5" />
+                <Wrench className="h-5 w-5 text-status-info shrink-0 mt-0.5" />
                 <div className="min-w-0">
-                  <p className="text-sm font-medium text-blue-800">Traženi posao</p>
-                  <p className="text-sm text-blue-700 whitespace-pre-wrap mt-1">{workOrder.opis_kvara}</p>
+                  <p className="text-sm font-medium text-foreground">Traženi posao</p>
+                  <p className="text-sm text-muted-foreground whitespace-pre-wrap mt-1">{workOrder.opis_kvara}</p>
                 </div>
               </div>
             </div>
           )}
           {workOrder.napomena && (
-            <div className="bg-amber-50 border-l-4 border-amber-500 p-3 sm:p-4 rounded-r-lg">
+            <div className="bg-status-warning/10 border-l-4 border-status-warning p-3 sm:p-4 rounded-none">
               <div className="flex items-start gap-3">
-                <StickyNote className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
+                <StickyNote className="h-5 w-5 text-status-warning shrink-0 mt-0.5" />
                 <div className="min-w-0">
-                  <p className="text-sm font-medium text-amber-800">Napomena</p>
-                  <p className="text-sm text-amber-700 whitespace-pre-wrap mt-1">{workOrder.napomena}</p>
+                  <p className="text-sm font-medium text-foreground">Napomena</p>
+                  <p className="text-sm text-muted-foreground whitespace-pre-wrap mt-1">{workOrder.napomena}</p>
                 </div>
               </div>
             </div>
@@ -163,20 +165,20 @@ export function WorkOrderDetail({
       )}
 
       {/* Mobile: Compact combined info */}
-      <div className="sm:hidden bg-white rounded-lg shadow-sm p-3 space-y-3">
+      <div className="sm:hidden bg-card rounded-none border border-border p-3 space-y-3">
         {/* Customer row */}
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0">
-            <span className="text-xs text-gray-500">Klijent</span>
+            <span className="text-xs text-muted-foreground">Klijent</span>
             <p className="font-medium text-sm truncate">
               {workOrder.customer?.ime} {workOrder.customer?.prezime}
               {workOrder.customer?.naziv_firme && (
-                <span className="text-gray-500 font-normal"> • {workOrder.customer.naziv_firme}</span>
+                <span className="text-muted-foreground font-normal"> • {workOrder.customer.naziv_firme}</span>
               )}
             </p>
           </div>
           {workOrder.customer?.telefon && (
-            <a href={`tel:${workOrder.customer.telefon}`} className="text-sm text-blue-600 shrink-0">
+            <a href={`tel:${workOrder.customer.telefon}`} className="text-sm text-status-info shrink-0">
               {workOrder.customer.telefon}
             </a>
           )}
@@ -185,11 +187,11 @@ export function WorkOrderDetail({
         {/* Vehicle row */}
         <div className="grid grid-cols-2 gap-2 text-sm">
           <div>
-            <span className="text-xs text-gray-500">Vozilo</span>
+            <span className="text-xs text-muted-foreground">Vozilo</span>
             <p className="font-medium">{workOrder.marka_vozila} {workOrder.model_vozila}</p>
           </div>
           <div>
-            <span className="text-xs text-gray-500">Tablice</span>
+            <span className="text-xs text-muted-foreground">Tablice</span>
             <p className="font-medium font-mono">{workOrder.registarske_tablice}</p>
           </div>
         </div>
@@ -198,18 +200,18 @@ export function WorkOrderDetail({
         <div className="grid grid-cols-2 gap-2 text-sm">
           {workOrder.vin_broj && (
             <div className="col-span-2">
-              <span className="text-xs text-gray-500">VIN</span>
+              <span className="text-xs text-muted-foreground">VIN</span>
               <p className="font-mono text-xs truncate">{workOrder.vin_broj}</p>
             </div>
           )}
           {workOrder.motor && (
             <div>
-              <span className="text-xs text-gray-500">Motor</span>
+              <span className="text-xs text-muted-foreground">Motor</span>
               <p className="font-medium">{workOrder.motor}</p>
             </div>
           )}
           <div>
-            <span className="text-xs text-gray-500">Mehaničar</span>
+            <span className="text-xs text-muted-foreground">Mehaničar</span>
             <p className="font-medium">
               {workOrder.mechanic
                 ? `${workOrder.mechanic.ime} ${workOrder.mechanic.prezime}`
@@ -223,24 +225,24 @@ export function WorkOrderDetail({
       {/* Desktop: Customer & Vehicle Info */}
       <div className="hidden sm:grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Customer */}
-        <div className="bg-white rounded-xl shadow-sm p-6">
-          <h2 className="text-lg font-medium text-gray-900 mb-4">Klijent</h2>
+        <div className="bg-card rounded-none border border-border p-6">
+          <h2 className="text-lg font-medium text-foreground mb-4">Klijent</h2>
           <div className="space-y-3">
             <div>
-              <span className="text-sm text-gray-500">Ime i prezime</span>
+              <span className="text-sm text-muted-foreground">Ime i prezime</span>
               <p className="font-medium">
                 {workOrder.customer?.ime} {workOrder.customer?.prezime}
               </p>
             </div>
             {workOrder.customer?.naziv_firme && (
               <div>
-                <span className="text-sm text-gray-500">Firma</span>
+                <span className="text-sm text-muted-foreground">Firma</span>
                 <p className="font-medium">{workOrder.customer.naziv_firme}</p>
               </div>
             )}
             {workOrder.customer?.telefon && (
               <div>
-                <span className="text-sm text-gray-500">Telefon</span>
+                <span className="text-sm text-muted-foreground">Telefon</span>
                 <p className="font-medium">{workOrder.customer.telefon}</p>
               </div>
             )}
@@ -248,28 +250,28 @@ export function WorkOrderDetail({
         </div>
 
         {/* Vehicle */}
-        <div className="bg-white rounded-xl shadow-sm p-6">
-          <h2 className="text-lg font-medium text-gray-900 mb-4">Vozilo</h2>
+        <div className="bg-card rounded-none border border-border p-6">
+          <h2 className="text-lg font-medium text-foreground mb-4">Vozilo</h2>
           <div className="space-y-3">
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <span className="text-sm text-gray-500">Marka</span>
+                <span className="text-sm text-muted-foreground">Marka</span>
                 <p className="font-medium">{workOrder.marka_vozila}</p>
               </div>
               <div>
-                <span className="text-sm text-gray-500">Model</span>
+                <span className="text-sm text-muted-foreground">Model</span>
                 <p className="font-medium">{workOrder.model_vozila}</p>
               </div>
             </div>
             <div>
-              <span className="text-sm text-gray-500">Registarske tablice</span>
+              <span className="text-sm text-muted-foreground">Registarske tablice</span>
               <p className="font-medium font-mono">
                 {workOrder.registarske_tablice}
               </p>
             </div>
             {workOrder.vin_broj && (
               <div>
-                <span className="text-sm text-gray-500">VIN broj</span>
+                <span className="text-sm text-muted-foreground">VIN broj</span>
                 <p className="font-medium font-mono text-sm">
                   {workOrder.vin_broj}
                 </p>
@@ -277,7 +279,7 @@ export function WorkOrderDetail({
             )}
             {workOrder.motor && (
               <div>
-                <span className="text-sm text-gray-500">Motor</span>
+                <span className="text-sm text-muted-foreground">Motor</span>
                 <p className="font-medium">{workOrder.motor}</p>
               </div>
             )}
@@ -286,9 +288,9 @@ export function WorkOrderDetail({
       </div>
 
       {/* Desktop: Mechanic */}
-      <div className="hidden sm:block bg-white rounded-xl shadow-sm p-6">
+      <div className="hidden sm:block bg-card rounded-none border border-border p-6">
         <div>
-          <span className="text-sm text-gray-500">Mehaničar</span>
+          <span className="text-sm text-muted-foreground">Mehaničar</span>
           <p className="font-medium">
             {workOrder.mechanic
               ? `${workOrder.mechanic.ime} ${workOrder.mechanic.prezime}`
@@ -298,8 +300,8 @@ export function WorkOrderDetail({
       </div>
 
       {/* Time Tracking */}
-      <div className="bg-white rounded-lg sm:rounded-xl shadow-sm p-3 sm:p-6">
-        <h2 className="text-base sm:text-lg font-medium text-gray-900 mb-2 sm:mb-4">
+      <div className="bg-card rounded-none border border-border p-3 sm:p-6">
+        <h2 className="text-base sm:text-lg font-medium text-foreground mb-2 sm:mb-4">
           Evidencija vremena
         </h2>
         <TimeTracker
@@ -312,8 +314,8 @@ export function WorkOrderDetail({
       </div>
 
       {/* Items */}
-      <div className="bg-white rounded-lg sm:rounded-xl shadow-sm p-3 sm:p-6">
-        <h2 className="text-base sm:text-lg font-medium text-gray-900 mb-2 sm:mb-4">
+      <div className="bg-card rounded-none border border-border p-3 sm:p-6">
+        <h2 className="text-base sm:text-lg font-medium text-foreground mb-2 sm:mb-4">
           Dijelovi i usluge
         </h2>
         <WorkOrderItems
@@ -324,10 +326,10 @@ export function WorkOrderDetail({
       </div>
 
       {/* Total */}
-      <div className="bg-white rounded-lg sm:rounded-xl shadow-sm p-3 sm:p-6">
+      <div className="bg-card rounded-none border border-border p-3 sm:p-6">
         <div className="flex justify-between items-center">
-          <span className="text-base sm:text-xl font-medium text-gray-900">Ukupno</span>
-          <span className="text-xl sm:text-2xl font-bold text-gray-900">
+          <span className="text-base sm:text-xl font-medium text-foreground">Ukupno</span>
+          <span className="text-xl sm:text-2xl font-semibold text-foreground">
             {formatCurrency(workOrder.ukupna_cijena)}
           </span>
         </div>

@@ -1,8 +1,13 @@
 import { getDB } from '../db';
+import { requireAuth, validateCsrf } from './auth';
 import type { TimeEntry, Mechanic } from '../types';
 
 // GET /api/work-orders/:id/time-entries - Get all time entries for a work order
 export function getTimeEntries(req: Request): Response {
+  // Require authentication
+  const authResult = requireAuth(req);
+  if (authResult instanceof Response) return authResult;
+
   const url = new URL(req.url);
   const pathParts = url.pathname.split('/');
   const workOrderId = parseInt(pathParts[pathParts.indexOf('work-orders') + 1] || '0');
@@ -26,6 +31,12 @@ export function getTimeEntries(req: Request): Response {
 
 // POST /api/work-orders/:id/time-entries/start - Start a new time entry
 export async function startTimeEntry(req: Request): Promise<Response> {
+  // Require authentication + CSRF validation
+  const authResult = requireAuth(req);
+  if (authResult instanceof Response) return authResult;
+  const csrfError = validateCsrf(req);
+  if (csrfError) return csrfError;
+
   const url = new URL(req.url);
   const pathParts = url.pathname.split('/');
   const workOrderId = parseInt(pathParts[pathParts.indexOf('work-orders') + 1] || '0');
@@ -66,6 +77,12 @@ export async function startTimeEntry(req: Request): Promise<Response> {
 
 // POST /api/work-orders/:id/time-entries/stop - Stop the active time entry
 export function stopTimeEntry(req: Request): Response {
+  // Require authentication + CSRF validation
+  const authResult = requireAuth(req);
+  if (authResult instanceof Response) return authResult;
+  const csrfError = validateCsrf(req);
+  if (csrfError) return csrfError;
+
   const url = new URL(req.url);
   const pathParts = url.pathname.split('/');
   const workOrderId = parseInt(pathParts[pathParts.indexOf('work-orders') + 1] || '0');
@@ -98,6 +115,12 @@ export function stopTimeEntry(req: Request): Response {
 
 // DELETE /api/work-orders/:orderId/time-entries/:entryId - Delete a time entry
 export function deleteTimeEntry(req: Request): Response {
+  // Require authentication + CSRF validation
+  const authResult = requireAuth(req);
+  if (authResult instanceof Response) return authResult;
+  const csrfError = validateCsrf(req);
+  if (csrfError) return csrfError;
+
   const url = new URL(req.url);
   const pathParts = url.pathname.split('/');
   const entryId = parseInt(pathParts[pathParts.length - 1] || '0');

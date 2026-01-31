@@ -2,20 +2,28 @@
 
 @layer base {
   :root {
-    @apply font-sans;
+    font-family: 'DM Sans', system-ui, sans-serif;
   }
 
   body {
-    @apply min-w-[320px] min-h-screen m-0 bg-gray-50 text-foreground;
+    @apply min-w-[320px] min-h-screen m-0 bg-background;
   }
 
-  /* Ensure smooth scrolling */
   html {
     scroll-behavior: smooth;
   }
+
+  /* Monospace for codes/numbers */
+  .font-mono {
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+  }
 }
 
-/* Custom scrollbar */
+/* Lyra-style utilities */
+@layer utilities {
+}
+
+/* Custom scrollbar - minimal style */
 @media (min-width: 768px) {
   ::-webkit-scrollbar {
     width: 8px;
@@ -23,16 +31,16 @@
   }
 
   ::-webkit-scrollbar-track {
-    background: #f1f1f1;
+    background: transparent;
   }
 
   ::-webkit-scrollbar-thumb {
-    background: #c1c1c1;
+    background: #D4D4D4;
     border-radius: 4px;
   }
 
   ::-webkit-scrollbar-thumb:hover {
-    background: #a1a1a1;
+    background: #A3A3A3;
   }
 }
 
@@ -42,7 +50,6 @@
     -webkit-tap-highlight-color: transparent;
   }
 
-  /* Larger touch targets on mobile */
   button {
     min-height: 44px;
   }
@@ -54,11 +61,28 @@
   -webkit-overflow-scrolling: touch;
 }
 
+/* Reduced motion */
 @media (prefers-reduced-motion) {
   *,
   ::before,
   ::after {
-    animation: none !important;
-    transition: none !important;
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}
+
+/* Focus visible - clean ring */
+@layer base {
+  :focus-visible {
+    outline: 2px solid #1A1A1A;
+    outline-offset: 2px;
+  }
+}
+
+/* Shimmer animation for skeletons */
+@keyframes shimmer {
+  100% {
+    transform: translateX(100%);
   }
 }

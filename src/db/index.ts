@@ -69,6 +69,15 @@ function runMigrations(db: Database): void {
     if (!hasOpisKvara) {
       db.exec("ALTER TABLE work_orders ADD COLUMN opis_kvara TEXT");
     }
+
+    // Add csrf_token column to sessions if it doesn't exist
+    const sessionColumns = db.query<{ name: string }, []>(
+      "PRAGMA table_info(sessions)"
+    ).all();
+    const hasCsrfToken = sessionColumns.some(col => col.name === 'csrf_token');
+    if (!hasCsrfToken) {
+      db.exec("ALTER TABLE sessions ADD COLUMN csrf_token TEXT");
+    }
   } catch {}
 }
 

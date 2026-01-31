@@ -7,13 +7,19 @@ function generateSessionId(): string {
   return Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
+// Generate CSRF token
+function generateCsrfToken(): string {
+  const bytes = crypto.getRandomValues(new Uint8Array(32));
+  return Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
 // Get session from cookie header
 function getSessionFromRequest(req: Request): string | null {
   const cookie = req.headers.get('cookie');
   if (!cookie) return null;
 
   const match = cookie.match(/session=([^;]+)/);
-  return match ? match[1] : null;
+  return match ? match[1] ?? null : null;
 }
 
 // Get current user from session
@@ -54,6 +60,56 @@ export function getCurrentUser(req: Request): AuthUser | null {
   };
 }
 
+// Require authentication helper - returns user or error response
+export function requireAuth(req: Request): AuthUser | Response {
+  const user = getCurrentUser(req);
+  if (!user) {
+    return Response.json({ message: 'Niste prijavljeni' }, { status: 401 });
+  }
+  return user;
+}
+
+// Require admin role helper
+export function requireAdmin(req: Request): AuthUser | Response {
+  const result = requireAuth(req);
+  if (result instanceof Response) return result;
+  if (result.role !== 'admin') {
+    return Response.json({ message: 'Nemate pristup' }, { status: 403 });
+  }
+  return result;
+}
+
+// Validate CSRF token for state-changing requests
+export function validateCsrf(req: Request): Response | null {
+  const method = req.method.toUpperCase();
+  // Only validate for state-changing methods
+  if (!['POST', 'PUT', 'DELETE', 'PATCH'].includes(method)) {
+    return null;
+  }
+
+  const csrfHeader = req.headers.get('X-CSRF-Token');
+  const sessionId = getSessionFromRequest(req);
+
+  if (!sessionId) {
+    return Response.json({ message: 'Niste prijavljeni' }, { status: 401 });
+  }
+
+  const db = getDB();
+  const session = db.query<Session & { csrf_token?: string }, [string]>(
+    'SELECT * FROM sessions WHERE id = ? AND expires_at > datetime("now")'
+  ).get(sessionId);
+
+  if (!session) {
+    return Response.json({ message: 'Sesija je istekla' }, { status: 401 });
+  }
+
+  if (!csrfHeader || csrfHeader !== session.csrf_token) {
+    return Response.json({ message: 'Nevažeći CSRF token' }, { status: 403 });
+  }
+
+  return null;
+}
+
 // POST /api/auth/login
 export async function login(req: Request): Promise<Response> {
   const { username, password } = await req.json();
@@ -79,13 +135,14 @@ export async function login(req: Request): Promise<Response> {
     return Response.json({ message: 'Pogrešno korisničko ime ili lozinka' }, { status: 401 });
   }
 
-  // Create session (expires in 7 days)
+  // Create session with CSRF token (expires in 7 days)
   const sessionId = generateSessionId();
+  const csrfToken = generateCsrfToken();
   const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
 
-  db.query<null, [string, number, string]>(
-    'INSERT INTO sessions (id, user_id, expires_at) VALUES (?, ?, ?)'
-  ).run(sessionId, user.id, expiresAt);
+  db.query<null, [string, number, string, string]>(
+    'INSERT INTO sessions (id, user_id, expires_at, csrf_token) VALUES (?, ?, ?, ?)'
+  ).run(sessionId, user.id, expiresAt, csrfToken);
 
   // Get mechanic if linked
   let mechanic: Mechanic | undefined;
@@ -95,12 +152,13 @@ export async function login(req: Request): Promise<Response> {
     ).get(user.mechanic_id) || undefined;
   }
 
-  const authUser: AuthUser = {
+  const authUser = {
     id: user.id,
     username: user.username,
     role: user.role,
     mechanic_id: user.mechanic_id,
     mechanic,
+    csrf_token: csrfToken,
   };
 
   return new Response(JSON.stringify(authUser), {
@@ -138,7 +196,17 @@ export function me(req: Request): Response {
     return Response.json({ message: 'Niste prijavljeni' }, { status: 401 });
   }
 
-  return Response.json(user);
+  // Get CSRF token from session
+  const sessionId = getSessionFromRequest(req);
+  const db = getDB();
+  const session = db.query<{ csrf_token: string | null }, [string]>(
+    'SELECT csrf_token FROM sessions WHERE id = ?'
+  ).get(sessionId!);
+
+  return Response.json({
+    ...user,
+    csrf_token: session?.csrf_token || null,
+  });
 }
 
 // GET /api/users - List all users (admin only)
