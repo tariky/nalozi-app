@@ -252,10 +252,10 @@ export async function createWorkOrder(req: Request): Promise<Response> {
   const brojNaloga = generateWorkOrderNumber();
   const createdAt = new Date().toISOString();
 
-  const result = db.query<{ id: number }, [string, number, string, string | null, string, string, string | null, number | null, string | null, string | null, string, string]>(
+  const result = db.query<{ id: number }, [string, number, string, string | null, string, string, string | null, number | null, number | null, string | null, string | null, string, string]>(
     `INSERT INTO work_orders
-     (broj_naloga, customer_id, registarske_tablice, vin_broj, marka_vozila, model_vozila, motor, mechanic_id, opis_kvara, napomena, status, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`
+     (broj_naloga, customer_id, registarske_tablice, vin_broj, marka_vozila, model_vozila, motor, kilometraza, mechanic_id, opis_kvara, napomena, status, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`
   ).get(
     brojNaloga,
     data.customer_id,
@@ -264,7 +264,8 @@ export async function createWorkOrder(req: Request): Promise<Response> {
     data.marka_vozila,
     data.model_vozila,
     data.motor || null,
-    data.mechanic_id || null,
+    data.kilometraza ?? null,
+    data.mechanic_id ?? null,
     data.opis_kvara || null,
     data.napomena || null,
     data.status || 'otvoren',
@@ -333,9 +334,13 @@ export async function updateWorkOrder(req: Request): Promise<Response> {
     updates.push('motor = ?');
     values.push(data.motor || null);
   }
+  if (data.kilometraza !== undefined) {
+    updates.push('kilometraza = ?');
+    values.push(data.kilometraza ?? null);
+  }
   if (data.mechanic_id !== undefined) {
     updates.push('mechanic_id = ?');
-    values.push(data.mechanic_id || null);
+    values.push(data.mechanic_id ?? null);
   }
   if (data.opis_kvara !== undefined) {
     updates.push('opis_kvara = ?');
@@ -430,7 +435,7 @@ export async function addWorkOrderItem(req: Request): Promise<Response> {
 
   const url = new URL(req.url);
   const pathParts = url.pathname.split('/');
-  const workOrderId = parseInt(pathParts[pathParts.length - 2]);
+  const workOrderId = parseInt(pathParts[pathParts.length - 2] || '0');
   const data: WorkOrderItemForm = await req.json();
 
   if (!data.tip || !data.naziv || data.jedinicna_cijena === undefined) {
@@ -456,12 +461,17 @@ export async function addWorkOrderItem(req: Request): Promise<Response> {
   }
 
   const kolicina = data.kolicina || 1;
-  const ukupnaCijena = kolicina * data.jedinicna_cijena;
+  const popust = data.popust ?? 0;
+  if (popust < 0 || popust > 100) {
+    return Response.json({ message: 'Popust mora biti između 0 i 100%' }, { status: 400 });
+  }
+  const subtotal = kolicina * data.jedinicna_cijena;
+  const ukupnaCijena = subtotal - (subtotal * popust / 100);
 
-  const result = db.query<{ id: number }, [number, string, string, number, number, number]>(
-    `INSERT INTO work_order_items (work_order_id, tip, naziv, kolicina, jedinicna_cijena, ukupna_cijena)
-     VALUES (?, ?, ?, ?, ?, ?) RETURNING id`
-  ).get(workOrderId, data.tip, data.naziv, kolicina, data.jedinicna_cijena, ukupnaCijena);
+  const result = db.query<{ id: number }, [number, string, string, number, number, number, number]>(
+    `INSERT INTO work_order_items (work_order_id, tip, naziv, kolicina, jedinicna_cijena, popust, ukupna_cijena)
+     VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING id`
+  ).get(workOrderId, data.tip, data.naziv, kolicina, data.jedinicna_cijena, popust, ukupnaCijena);
 
   // Recalculate total
   recalculateTotal(workOrderId);
@@ -483,8 +493,8 @@ export async function updateWorkOrderItem(req: Request): Promise<Response> {
 
   const url = new URL(req.url);
   const pathParts = url.pathname.split('/');
-  const itemId = parseInt(pathParts[pathParts.length - 1]);
-  const workOrderId = parseInt(pathParts[pathParts.length - 3]);
+  const itemId = parseInt(pathParts[pathParts.length - 1] || '0');
+  const workOrderId = parseInt(pathParts[pathParts.length - 3] || '0');
   const data: WorkOrderItemForm = await req.json();
 
   const db = getDB();
@@ -516,12 +526,17 @@ export async function updateWorkOrderItem(req: Request): Promise<Response> {
 
   const kolicina = data.kolicina || existing.kolicina;
   const jedinicnaCijena = data.jedinicna_cijena ?? existing.jedinicna_cijena;
-  const ukupnaCijena = kolicina * jedinicnaCijena;
+  const popust = data.popust ?? existing.popust ?? 0;
+  if (popust < 0 || popust > 100) {
+    return Response.json({ message: 'Popust mora biti između 0 i 100%' }, { status: 400 });
+  }
+  const subtotal = kolicina * jedinicnaCijena;
+  const ukupnaCijena = subtotal - (subtotal * popust / 100);
 
-  db.query<null, [string, string, number, number, number, number]>(
-    `UPDATE work_order_items SET tip = ?, naziv = ?, kolicina = ?, jedinicna_cijena = ?, ukupna_cijena = ?
+  db.query<null, [string, string, number, number, number, number, number]>(
+    `UPDATE work_order_items SET tip = ?, naziv = ?, kolicina = ?, jedinicna_cijena = ?, popust = ?, ukupna_cijena = ?
      WHERE id = ?`
-  ).run(data.tip || existing.tip, data.naziv || existing.naziv, kolicina, jedinicnaCijena, ukupnaCijena, itemId);
+  ).run(data.tip || existing.tip, data.naziv || existing.naziv, kolicina, jedinicnaCijena, popust, ukupnaCijena, itemId);
 
   // Recalculate total
   recalculateTotal(workOrderId);
@@ -543,8 +558,8 @@ export function deleteWorkOrderItem(req: Request): Response {
 
   const url = new URL(req.url);
   const pathParts = url.pathname.split('/');
-  const itemId = parseInt(pathParts[pathParts.length - 1]);
-  const workOrderId = parseInt(pathParts[pathParts.length - 3]);
+  const itemId = parseInt(pathParts[pathParts.length - 1] || '0');
+  const workOrderId = parseInt(pathParts[pathParts.length - 3] || '0');
 
   const db = getDB();
 
@@ -623,6 +638,7 @@ export function exportWorkOrdersCSV(req: Request): Response {
     'marka_vozila',
     'model_vozila',
     'motor',
+    'kilometraza',
     'opis_kvara',
     'napomena',
     'ukupna_cijena',
@@ -653,7 +669,7 @@ export function exportWorkOrdersCSV(req: Request): Response {
   for (const wo of workOrders) {
     // Get items for this work order
     const items = db.query<WorkOrderItem, [number]>(
-      'SELECT tip, naziv, kolicina, jedinicna_cijena, ukupna_cijena FROM work_order_items WHERE work_order_id = ?'
+      'SELECT tip, naziv, kolicina, jedinicna_cijena, popust, ukupna_cijena FROM work_order_items WHERE work_order_id = ?'
     ).all(wo.id);
 
     // Get time entries for this work order
@@ -674,6 +690,7 @@ export function exportWorkOrdersCSV(req: Request): Response {
       escapeCSV(wo.marka_vozila),
       escapeCSV(wo.model_vozila),
       escapeCSV(wo.motor),
+      escapeCSV(wo.kilometraza),
       escapeCSV(wo.opis_kvara),
       escapeCSV(wo.napomena),
       escapeCSV(wo.ukupna_cijena),
@@ -727,7 +744,7 @@ export async function importWorkOrdersCSV(req: Request): Promise<Response> {
   }
 
   // Parse headers
-  const headers = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, ''));
+  const headers = lines[0]!.split(',').map(h => h.trim().replace(/^"|"$/g, ''));
 
   const results = {
     imported: 0,
@@ -739,7 +756,7 @@ export async function importWorkOrdersCSV(req: Request): Promise<Response> {
   db.transaction(() => {
     for (let i = 1; i < lines.length; i++) {
       try {
-        const line = lines[i];
+        const line = lines[i]!;
         const values = parseCSVLine(line);
 
         if (values.length !== headers.length) {
@@ -755,7 +772,7 @@ export async function importWorkOrdersCSV(req: Request): Promise<Response> {
         // Check if work order with this number already exists
         const existingOrder = db.query<{ id: number }, [string]>(
           'SELECT id FROM work_orders WHERE broj_naloga = ?'
-        ).get(data.broj_naloga);
+        ).get(data.broj_naloga || '');
 
         if (existingOrder) {
           results.skipped++;
@@ -764,16 +781,16 @@ export async function importWorkOrdersCSV(req: Request): Promise<Response> {
 
         // Create or find customer
         let customerId: number;
-        const existingCustomer = db.query<{ id: number }, [string, string, string | null]>(
+        const existingCustomer = db.query<{ id: number }, [string, string, string | null, string | null]>(
           'SELECT id FROM customers WHERE ime = ? AND prezime = ? AND (naziv_firme = ? OR (naziv_firme IS NULL AND ? IS NULL))'
-        ).get(data.customer_ime, data.customer_prezime, data.customer_firma || null, data.customer_firma || null);
+        ).get(data.customer_ime || '', data.customer_prezime || '', data.customer_firma || null, data.customer_firma || null);
 
         if (existingCustomer) {
           customerId = existingCustomer.id;
         } else {
           const customerResult = db.query<{ id: number }, [string, string, string | null, string | null]>(
             'INSERT INTO customers (ime, prezime, naziv_firme, telefon) VALUES (?, ?, ?, ?) RETURNING id'
-          ).get(data.customer_ime, data.customer_prezime, data.customer_firma || null, data.customer_telefon || null);
+          ).get(data.customer_ime || '', data.customer_prezime || '', data.customer_firma || null, data.customer_telefon || null);
           customerId = customerResult!.id;
         }
 
@@ -795,18 +812,19 @@ export async function importWorkOrdersCSV(req: Request): Promise<Response> {
         }
 
         // Create work order
-        const workOrderResult = db.query<{ id: number }, [string, number, string, string | null, string, string, string | null, number | null, string | null, string | null, string, string, string | null]>(
+        const workOrderResult = db.query<{ id: number }, [string, number, string, string | null, string, string, string | null, number | null, number | null, string | null, string | null, string, string, string | null]>(
           `INSERT INTO work_orders
-           (broj_naloga, customer_id, registarske_tablice, vin_broj, marka_vozila, model_vozila, motor, mechanic_id, opis_kvara, napomena, status, created_at, closed_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`
+           (broj_naloga, customer_id, registarske_tablice, vin_broj, marka_vozila, model_vozila, motor, kilometraza, mechanic_id, opis_kvara, napomena, status, created_at, closed_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`
         ).get(
-          data.broj_naloga,
+          data.broj_naloga || '',
           customerId,
-          data.registarske_tablice,
+          data.registarske_tablice || '',
           data.vin_broj || null,
-          data.marka_vozila,
-          data.model_vozila,
+          data.marka_vozila || '',
+          data.model_vozila || '',
           data.motor || null,
+          data.kilometraza ? parseInt(data.kilometraza) : null,
           mechanicId,
           data.opis_kvara || null,
           data.napomena || null,
@@ -822,9 +840,9 @@ export async function importWorkOrdersCSV(req: Request): Promise<Response> {
           try {
             const items = JSON.parse(data.items_json);
             for (const item of items) {
-              db.query<null, [number, string, string, number, number, number]>(
-                'INSERT INTO work_order_items (work_order_id, tip, naziv, kolicina, jedinicna_cijena, ukupna_cijena) VALUES (?, ?, ?, ?, ?, ?)'
-              ).run(workOrderId, item.tip, item.naziv, item.kolicina, item.jedinicna_cijena, item.ukupna_cijena);
+              db.query<null, [number, string, string, number, number, number, number]>(
+                'INSERT INTO work_order_items (work_order_id, tip, naziv, kolicina, jedinicna_cijena, popust, ukupna_cijena) VALUES (?, ?, ?, ?, ?, ?, ?)'
+              ).run(workOrderId, item.tip, item.naziv, item.kolicina, item.jedinicna_cijena, item.popust ?? 0, item.ukupna_cijena);
             }
           } catch (e) {
             // Ignore items parsing errors

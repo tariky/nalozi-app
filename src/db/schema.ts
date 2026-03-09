@@ -45,6 +45,7 @@ CREATE TABLE IF NOT EXISTS work_orders (
   marka_vozila TEXT NOT NULL,
   model_vozila TEXT NOT NULL,
   motor TEXT,
+  kilometraza INTEGER,
   mechanic_id INTEGER,
   opis_kvara TEXT,
   napomena TEXT,
@@ -64,6 +65,7 @@ CREATE TABLE IF NOT EXISTS work_order_items (
   naziv TEXT NOT NULL,
   kolicina REAL DEFAULT 1,
   jedinicna_cijena REAL NOT NULL,
+  popust REAL DEFAULT 0,
   ukupna_cijena REAL NOT NULL,
   created_at TEXT DEFAULT (datetime('now')),
   FOREIGN KEY (work_order_id) REFERENCES work_orders(id) ON DELETE CASCADE

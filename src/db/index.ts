@@ -70,6 +70,21 @@ function runMigrations(db: Database): void {
       db.exec("ALTER TABLE work_orders ADD COLUMN opis_kvara TEXT");
     }
 
+    // Add kilometraza column if it doesn't exist
+    const hasKilometraza = columns.some(col => col.name === 'kilometraza');
+    if (!hasKilometraza) {
+      db.exec("ALTER TABLE work_orders ADD COLUMN kilometraza INTEGER");
+    }
+
+    // Add popust column to work_order_items if it doesn't exist
+    const itemColumns = db.query<{ name: string }, []>(
+      "PRAGMA table_info(work_order_items)"
+    ).all();
+    const hasPopust = itemColumns.some(col => col.name === 'popust');
+    if (!hasPopust) {
+      db.exec("ALTER TABLE work_order_items ADD COLUMN popust REAL DEFAULT 0");
+    }
+
     // Add csrf_token column to sessions if it doesn't exist
     const sessionColumns = db.query<{ name: string }, []>(
       "PRAGMA table_info(sessions)"

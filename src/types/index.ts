@@ -39,6 +39,7 @@ export interface WorkOrder {
   marka_vozila: string;
   model_vozila: string;
   motor: string | null;
+  kilometraza: number | null;
   mechanic_id: number | null;
   opis_kvara: string | null;
   napomena: string | null;
@@ -70,6 +71,7 @@ export interface WorkOrderItem {
   naziv: string;
   kolicina: number;
   jedinicna_cijena: number;
+  popust: number;
   ukupna_cijena: number;
   created_at: string;
 }
@@ -105,6 +107,7 @@ export interface WorkOrderForm {
   marka_vozila: string;
   model_vozila: string;
   motor?: string;
+  kilometraza?: number;
   mechanic_id?: number;
   opis_kvara?: string;
   napomena?: string;
@@ -116,6 +119,7 @@ export interface WorkOrderItemForm {
   naziv: string;
   kolicina: number;
   jedinicna_cijena: number;
+  popust?: number;
 }
 
 // Auth types

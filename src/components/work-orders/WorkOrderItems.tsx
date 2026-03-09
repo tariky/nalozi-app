@@ -43,12 +43,13 @@ export function WorkOrderItems({ workOrderId, items, onUpdate, readOnly }: WorkO
     naziv: "",
     kolicina: 1,
     jedinicna_cijena: 0,
+    popust: 0,
   });
   const [loading, setLoading] = useState(false);
 
   const openNewForm = (tip: "dio" | "usluga") => {
     setEditingItem(null);
-    setFormData({ tip, naziv: "", kolicina: 1, jedinicna_cijena: 0 });
+    setFormData({ tip, naziv: "", kolicina: 1, jedinicna_cijena: 0, popust: 0 });
     setFormOpen(true);
   };
 
@@ -59,6 +60,7 @@ export function WorkOrderItems({ workOrderId, items, onUpdate, readOnly }: WorkO
       naziv: item.naziv,
       kolicina: item.kolicina,
       jedinicna_cijena: item.jedinicna_cijena,
+      popust: item.popust || 0,
     });
     setFormOpen(true);
   };
@@ -130,6 +132,9 @@ export function WorkOrderItems({ workOrderId, items, onUpdate, readOnly }: WorkO
                     {item.kolicina !== 1 && (
                       <span className="text-xs text-muted-foreground">×{item.kolicina}</span>
                     )}
+                    {item.popust > 0 && (
+                      <span className="text-xs text-status-success">-{item.popust}%</span>
+                    )}
                   </div>
                   <div className="text-xs text-muted-foreground">
                     {formatCurrency(item.jedinicna_cijena)}
@@ -171,6 +176,7 @@ export function WorkOrderItems({ workOrderId, items, onUpdate, readOnly }: WorkO
                   <TableHead>Naziv</TableHead>
                   <TableHead className="text-right">Količina</TableHead>
                   <TableHead className="text-right">Cijena</TableHead>
+                  <TableHead className="text-right">Popust</TableHead>
                   <TableHead className="text-right">Ukupno</TableHead>
                   {!readOnly && <TableHead className="w-20">Akcije</TableHead>}
                 </TableRow>
@@ -193,6 +199,9 @@ export function WorkOrderItems({ workOrderId, items, onUpdate, readOnly }: WorkO
                     <TableCell className="text-right">{item.kolicina}</TableCell>
                     <TableCell className="text-right">
                       {formatCurrency(item.jedinicna_cijena)}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      {item.popust > 0 ? `${item.popust}%` : "-"}
                     </TableCell>
                     <TableCell className="text-right font-medium">
                       {formatCurrency(item.ukupna_cijena)}
@@ -284,7 +293,7 @@ export function WorkOrderItems({ workOrderId, items, onUpdate, readOnly }: WorkO
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-3 gap-4">
               <div className="space-y-2">
                 <Label>Količina</Label>
                 <Input
@@ -316,11 +325,47 @@ export function WorkOrderItems({ workOrderId, items, onUpdate, readOnly }: WorkO
                   }
                 />
               </div>
+
+              <div className="space-y-2">
+                <Label>Popust (%)</Label>
+                <Input
+                  type="number"
+                  min="0"
+                  max="100"
+                  step="0.5"
+                  value={formData.popust || 0}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      popust: parseFloat(e.target.value) || 0,
+                    })
+                  }
+                />
+              </div>
             </div>
 
-            <div className="text-right text-lg font-semibold">
-              Ukupno: {formatCurrency(formData.kolicina * formData.jedinicna_cijena)}
-            </div>
+            {(() => {
+              const subtotal = formData.kolicina * formData.jedinicna_cijena;
+              const discount = subtotal * (formData.popust || 0) / 100;
+              const total = subtotal - discount;
+              return (
+                <div className="text-right space-y-1">
+                  {(formData.popust || 0) > 0 && (
+                    <>
+                      <div className="text-sm text-muted-foreground">
+                        Prije popusta: {formatCurrency(subtotal)}
+                      </div>
+                      <div className="text-sm text-status-success">
+                        Popust ({formData.popust}%): -{formatCurrency(discount)}
+                      </div>
+                    </>
+                  )}
+                  <div className="text-lg font-semibold">
+                    Ukupno: {formatCurrency(total)}
+                  </div>
+                </div>
+              );
+            })()}
 
             <div className="flex justify-end gap-3 pt-4">
               <Button variant="outline" onClick={() => setFormOpen(false)}>

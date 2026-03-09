@@ -210,6 +210,12 @@ export function WorkOrderDetail({
               <p className="font-medium">{workOrder.motor}</p>
             </div>
           )}
+          {workOrder.kilometraza && (
+            <div>
+              <span className="text-xs text-muted-foreground">Kilometraža</span>
+              <p className="font-medium">{workOrder.kilometraza.toLocaleString()} km</p>
+            </div>
+          )}
           <div>
             <span className="text-xs text-muted-foreground">Mehaničar</span>
             <p className="font-medium">
@@ -283,6 +289,12 @@ export function WorkOrderDetail({
                 <p className="font-medium">{workOrder.motor}</p>
               </div>
             )}
+            {workOrder.kilometraza && (
+              <div>
+                <span className="text-sm text-muted-foreground">Kilometraža</span>
+                <p className="font-medium">{workOrder.kilometraza.toLocaleString()} km</p>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -306,7 +318,7 @@ export function WorkOrderDetail({
         </h2>
         <TimeTracker
           workOrderId={workOrder.id}
-          mechanicId={workOrder.mechanic_id}
+          mechanicId={workOrder.mechanic_id ?? undefined}
           timeEntries={workOrder.time_entries || []}
           onUpdate={loadWorkOrder}
           isWorkOrderClosed={workOrder.status === "zavrsen"}

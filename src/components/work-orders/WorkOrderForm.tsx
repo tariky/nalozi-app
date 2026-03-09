@@ -45,6 +45,7 @@ export function WorkOrderForm({ workOrderId, onBack, onSaved }: WorkOrderFormPro
     marka_vozila: "",
     model_vozila: "",
     motor: "",
+    kilometraza: undefined,
     mechanic_id: initialMechanicId,
     opis_kvara: "",
     napomena: "",
@@ -136,7 +137,7 @@ export function WorkOrderForm({ workOrderId, onBack, onSaved }: WorkOrderFormPro
     }
 
     const timeoutId = setTimeout(() => {
-      checkVinExists(formData.vin_broj);
+      checkVinExists(formData.vin_broj!);
     }, 500);
 
     return () => clearTimeout(timeoutId);
@@ -164,6 +165,7 @@ export function WorkOrderForm({ workOrderId, onBack, onSaved }: WorkOrderFormPro
             marka_vozila: wo.marka_vozila,
             model_vozila: wo.model_vozila,
             motor: wo.motor || "",
+            kilometraza: wo.kilometraza ?? undefined,
             mechanic_id: wo.mechanic_id || undefined,
             opis_kvara: wo.opis_kvara || "",
             napomena: wo.napomena || "",
@@ -345,7 +347,7 @@ export function WorkOrderForm({ workOrderId, onBack, onSaved }: WorkOrderFormPro
               />
             </div>
 
-            <div className="space-y-2 sm:col-span-2">
+            <div className="space-y-2">
               <Label htmlFor="motor">Motor</Label>
               <Input
                 id="motor"
@@ -354,6 +356,20 @@ export function WorkOrderForm({ workOrderId, onBack, onSaved }: WorkOrderFormPro
                   setFormData({ ...formData, motor: e.target.value })
                 }
                 placeholder="npr. 2.0 TDI 150 KS"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="kilometraza">Kilometraža (km)</Label>
+              <Input
+                id="kilometraza"
+                type="number"
+                min="0"
+                value={formData.kilometraza || ""}
+                onChange={(e) =>
+                  setFormData({ ...formData, kilometraza: e.target.value ? parseInt(e.target.value) : undefined })
+                }
+                placeholder="npr. 150000"
               />
             </div>
           </div>

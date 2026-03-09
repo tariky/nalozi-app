@@ -95,11 +95,12 @@ const styles = StyleSheet.create({
     padding: 8,
     backgroundColor: "#fafafa",
   },
-  colType: { width: "12%" },
-  colName: { width: "38%", paddingRight: 5 },
-  colQty: { width: "12%", textAlign: "right" },
+  colType: { width: "10%" },
+  colName: { width: "32%", paddingRight: 5 },
+  colQty: { width: "10%", textAlign: "right" },
   colPrice: { width: "18%", textAlign: "right" },
-  colTotal: { width: "20%", textAlign: "right" },
+  colDiscount: { width: "12%", textAlign: "right" },
+  colTotal: { width: "18%", textAlign: "right" },
   totalsSection: {
     marginTop: 20,
     alignItems: "flex-end",
@@ -162,7 +163,16 @@ const styles = StyleSheet.create({
 
 // Format currency for PDF (without using Intl which isn't available)
 function formatCurrency(value: number): string {
-  return value.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ".").replace(".", ",") + " KM";
+  const parts = value.toFixed(2).split(".");
+  const whole = parts[0] || "0";
+  const decimal = parts[1] || "00";
+  const withThousands = whole.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+  return withThousands + "," + decimal + " KM";
+}
+
+// Format number with thousands separator for PDF
+function formatNumber(value: number): string {
+  return value.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
 }
 
 // Format date for PDF
@@ -253,6 +263,12 @@ function WorkOrderPDFDocument({ workOrder }: WorkOrderPDFDocumentProps) {
                   <Text style={styles.value}>{workOrder.motor}</Text>
                 </View>
               )}
+              {workOrder.kilometraza && (
+                <View style={styles.row}>
+                  <Text style={styles.label}>Kilometraža:</Text>
+                  <Text style={styles.value}>{formatNumber(workOrder.kilometraza)} km</Text>
+                </View>
+              )}
             </View>
           </View>
         </View>
@@ -279,6 +295,7 @@ function WorkOrderPDFDocument({ workOrder }: WorkOrderPDFDocumentProps) {
               <Text style={styles.colName}>Naziv</Text>
               <Text style={styles.colQty}>Kol.</Text>
               <Text style={styles.colPrice}>Cijena</Text>
+              <Text style={styles.colDiscount}>Popust</Text>
               <Text style={styles.colTotal}>Ukupno</Text>
             </View>
 
@@ -295,6 +312,9 @@ function WorkOrderPDFDocument({ workOrder }: WorkOrderPDFDocumentProps) {
                 <Text style={styles.colQty}>{item.kolicina}</Text>
                 <Text style={styles.colPrice}>
                   {formatCurrency(item.jedinicna_cijena)}
+                </Text>
+                <Text style={styles.colDiscount}>
+                  {item.popust > 0 ? `${item.popust}%` : "-"}
                 </Text>
                 <Text style={styles.colTotal}>
                   {formatCurrency(item.ukupna_cijena)}
