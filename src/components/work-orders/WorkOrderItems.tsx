@@ -1,8 +1,9 @@
 import { useState } from "react";
-import { Plus, Pencil, Trash2 } from "lucide-react";
+import { Plus, Pencil, Trash2, Camera } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { InvoiceScanDialog } from "./InvoiceScanDialog";
 import {
   Select,
   SelectContent,
@@ -46,6 +47,7 @@ export function WorkOrderItems({ workOrderId, items, onUpdate, readOnly }: WorkO
     popust: 0,
   });
   const [loading, setLoading] = useState(false);
+  const [scanOpen, setScanOpen] = useState(false);
 
   const openNewForm = (tip: "dio" | "usluga") => {
     setEditingItem(null);
@@ -98,7 +100,7 @@ export function WorkOrderItems({ workOrderId, items, onUpdate, readOnly }: WorkO
     <div className="space-y-3 sm:space-y-4">
       {/* Actions */}
       {!readOnly && (
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
           <Button variant="outline" size="sm" className="text-xs sm:text-sm h-8 sm:h-9" onClick={() => openNewForm("usluga")}>
             <Plus className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
             Usluga
@@ -106,6 +108,10 @@ export function WorkOrderItems({ workOrderId, items, onUpdate, readOnly }: WorkO
           <Button variant="outline" size="sm" className="text-xs sm:text-sm h-8 sm:h-9" onClick={() => openNewForm("dio")}>
             <Plus className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
             Dio
+          </Button>
+          <Button variant="outline" size="sm" className="text-xs sm:text-sm h-8 sm:h-9" onClick={() => setScanOpen(true)}>
+            <Camera className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
+            Skeniraj račun
           </Button>
         </div>
       )}
@@ -378,6 +384,13 @@ export function WorkOrderItems({ workOrderId, items, onUpdate, readOnly }: WorkO
           </div>
         </DialogContent>
       </Dialog>
+
+      <InvoiceScanDialog
+        workOrderId={workOrderId}
+        open={scanOpen}
+        onOpenChange={setScanOpen}
+        onSuccess={onUpdate}
+      />
     </div>
   );
 }

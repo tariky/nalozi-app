@@ -18,6 +18,7 @@ import type {
   MechanicStats,
   AuthUser,
   UserForm,
+  ScanInvoiceResponse,
 } from '../types';
 
 const API_BASE = '/api';
@@ -228,6 +229,43 @@ export const workOrderItemsApi = {
     fetchApi<void>(`/work-orders/${workOrderId}/items/${itemId}`, {
       method: 'DELETE',
     }),
+
+  addBulk: (workOrderId: number, items: WorkOrderItemForm[]) =>
+    fetchApi<WorkOrder>(`/work-orders/${workOrderId}/items/bulk`, {
+      method: 'POST',
+      body: JSON.stringify({ items }),
+    }),
+};
+
+// Invoice Scan API (multipart upload — bypasses fetchApi to send FormData with CSRF)
+export const invoiceScanApi = {
+  scan: async (file: File): Promise<{ success: true; data: ScanInvoiceResponse } | { success: false; error: string }> => {
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const headers: Record<string, string> = {};
+      if (csrfToken) {
+        headers['X-CSRF-Token'] = csrfToken;
+      }
+
+      const response = await fetch(`${API_BASE}/work-orders/scan-invoice`, {
+        method: 'POST',
+        headers,
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({ message: 'Greška na serveru' }));
+        return { success: false, error: error.message || 'Greška na serveru' };
+      }
+
+      const data = await response.json() as ScanInvoiceResponse;
+      return { success: true, data };
+    } catch {
+      return { success: false, error: 'Greška u komunikaciji sa serverom' };
+    }
+  },
 };
 
 // Time Entries API

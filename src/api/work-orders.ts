@@ -918,3 +918,96 @@ function parseCSVLine(line: string): string[] {
   values.push(current.trim());
   return values.map(v => v.replace(/^"|"$/g, '').replace(/""/g, '"'));
 }
+
+// POST /api/work-orders/:id/items/bulk - Bulk add items in one transaction
+export async function bulkAddWorkOrderItems(req: Request): Promise<Response> {
+  const authResult = requireAuth(req);
+  if (authResult instanceof Response) return authResult;
+  const csrfError = validateCsrf(req);
+  if (csrfError) return csrfError;
+
+  const url = new URL(req.url);
+  const pathParts = url.pathname.split("/");
+  // path: /api/work-orders/:id/items/bulk → :id is at index pathParts.length - 3
+  const workOrderId = parseInt(pathParts[pathParts.length - 3] || "0");
+
+  let body: unknown;
+  try {
+    body = await req.json();
+  } catch {
+    return Response.json({ message: "Nevalidan JSON" }, { status: 400 });
+  }
+
+  if (!body || typeof body !== "object" || !Array.isArray((body as { items?: unknown }).items)) {
+    return Response.json({ message: "Polje 'items' je obavezno" }, { status: 400 });
+  }
+
+  const items = (body as { items: unknown[] }).items;
+  const db = getDB();
+
+  // Check work order exists + authorization
+  const workOrder = db.query<WorkOrder, [number]>(
+    "SELECT * FROM work_orders WHERE id = ?"
+  ).get(workOrderId);
+
+  if (!workOrder) {
+    return Response.json({ message: "Radni nalog nije pronađen" }, { status: 404 });
+  }
+
+  if (authResult.role === "mechanic" && authResult.mechanic_id) {
+    if (workOrder.mechanic_id !== authResult.mechanic_id) {
+      return Response.json({ message: "Nemate pristup ovom radnom nalogu" }, { status: 403 });
+    }
+  }
+
+  // Validate every item BEFORE the transaction
+  const validated: Array<{ tip: "dio" | "usluga"; naziv: string; kolicina: number; jedinicna_cijena: number; popust: number; ukupna_cijena: number }> = [];
+  for (let i = 0; i < items.length; i++) {
+    const raw = items[i];
+    if (!raw || typeof raw !== "object") {
+      return Response.json({ message: `Stavka ${i + 1}: nevalidan format` }, { status: 400 });
+    }
+    const it = raw as Record<string, unknown>;
+
+    if (it.tip !== "dio" && it.tip !== "usluga") {
+      return Response.json({ message: `Stavka ${i + 1}: tip mora biti 'dio' ili 'usluga'` }, { status: 400 });
+    }
+    if (typeof it.naziv !== "string" || it.naziv.trim() === "") {
+      return Response.json({ message: `Stavka ${i + 1}: naziv je obavezan` }, { status: 400 });
+    }
+    const kolicina = typeof it.kolicina === "number" && it.kolicina > 0 ? it.kolicina : 1;
+    if (typeof it.jedinicna_cijena !== "number" || it.jedinicna_cijena < 0 || !isFinite(it.jedinicna_cijena)) {
+      return Response.json({ message: `Stavka ${i + 1}: cijena je obavezna` }, { status: 400 });
+    }
+    const popust = typeof it.popust === "number" ? it.popust : 0;
+    if (popust < 0 || popust > 100) {
+      return Response.json({ message: `Stavka ${i + 1}: popust mora biti 0–100%` }, { status: 400 });
+    }
+
+    const subtotal = kolicina * it.jedinicna_cijena;
+    const ukupnaCijena = subtotal - (subtotal * popust) / 100;
+
+    validated.push({
+      tip: it.tip,
+      naziv: it.naziv.trim(),
+      kolicina,
+      jedinicna_cijena: it.jedinicna_cijena,
+      popust,
+      ukupna_cijena: ukupnaCijena,
+    });
+  }
+
+  // Insert all items + recalculate total in a single transaction
+  db.transaction(() => {
+    for (const v of validated) {
+      db.query<null, [number, string, string, number, number, number, number]>(
+        `INSERT INTO work_order_items (work_order_id, tip, naziv, kolicina, jedinicna_cijena, popust, ukupna_cijena)
+         VALUES (?, ?, ?, ?, ?, ?, ?)`
+      ).run(workOrderId, v.tip, v.naziv, v.kolicina, v.jedinicna_cijena, v.popust, v.ukupna_cijena);
+    }
+    recalculateTotal(workOrderId);
+  })();
+
+  const updated = getWorkOrderWithDetails(workOrderId);
+  return Response.json(updated);
+}
