@@ -2,7 +2,7 @@ import type { ScanInvoiceResponse, ParsedInvoiceItem } from "../types";
 import { requireAuth, validateCsrf } from "./auth";
 
 const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
-const MODEL = "qwen/qwen3.5-flash-02-23";
+const MODEL = "qwen/qwen3.6-flash";
 const TIMEOUT_MS = 45_000;
 const MAX_BYTES = 8 * 1024 * 1024; // 8MB
 
