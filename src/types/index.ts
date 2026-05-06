@@ -189,3 +189,20 @@ export interface PaginatedResponse<T> {
   limit: number;
   totalPages: number;
 }
+
+// Invoice OCR types
+export interface ParsedInvoiceItem {
+  naziv: string;
+  kolicina: number;
+  jedinicna_cijena: number;
+  popust: number;
+}
+
+export interface ScanInvoiceResponse {
+  items: ParsedInvoiceItem[];
+  warnings: string[];
+}
+
+export interface BulkItemsRequest {
+  items: WorkOrderItemForm[];
+}
