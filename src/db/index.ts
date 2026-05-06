@@ -7,11 +7,16 @@ let adminSeeded = false;
 
 export function getDB(): Database {
   if (!db) {
-    // Ensure data directory exists
-    try {
-      mkdirSync("data", { recursive: true });
-    } catch {}
-    db = new Database("data/asnord.db", { create: true });
+    const dbPath = process.env.DB_PATH ?? "data/asnord.db";
+
+    // Ensure data directory exists for file-backed databases
+    if (dbPath !== ":memory:") {
+      try {
+        mkdirSync("data", { recursive: true });
+      } catch {}
+    }
+
+    db = new Database(dbPath, { create: true });
     db.exec("PRAGMA foreign_keys = ON");
     db.exec(createTablesSQL);
 
