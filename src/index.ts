@@ -47,9 +47,12 @@ import {
   addWorkOrderItem,
   updateWorkOrderItem,
   deleteWorkOrderItem,
+  bulkAddWorkOrderItems,
   exportWorkOrdersCSV,
   importWorkOrdersCSV,
 } from "./api/work-orders";
+
+import { scanInvoice } from "./api/invoice-scan";
 
 import {
   getSalesAnalytics,
@@ -127,6 +130,9 @@ const server = serve({
     "/api/work-orders/import/csv": {
       POST: importWorkOrdersCSV,
     },
+    "/api/work-orders/scan-invoice": {
+      POST: scanInvoice,
+    },
     "/api/work-orders/by-customer/:customerId": {
       GET: getWorkOrdersByCustomer,
     },
@@ -141,6 +147,9 @@ const server = serve({
     "/api/work-orders/:orderId/items/:itemId": {
       PUT: updateWorkOrderItem,
       DELETE: deleteWorkOrderItem,
+    },
+    "/api/work-orders/:id/items/bulk": {
+      POST: bulkAddWorkOrderItems,
     },
 
     // Time Entries API
