@@ -1,5 +1,5 @@
 import { test, expect } from "bun:test";
-import { parseModelResponse } from "./invoice-scan";
+import { parseModelResponse, buildOcrMessages } from "./invoice-scan";
 
 test("parses clean JSON object response", () => {
   const raw = JSON.stringify({
@@ -94,4 +94,15 @@ test("missing warnings field defaults to empty array", () => {
   });
   const result = parseModelResponse(raw);
   expect(result.warnings).toEqual([]);
+});
+
+test("buildOcrMessages produces correct shape with image", () => {
+  const messages = buildOcrMessages("data:image/jpeg;base64,XXX");
+  expect(messages.length).toBe(2);
+  expect(messages[0]!.role).toBe("system");
+  expect(messages[1]!.role).toBe("user");
+  expect(Array.isArray(messages[1]!.content)).toBe(true);
+  const userContent = messages[1]!.content as Array<{ type: string; image_url?: { url: string }; text?: string }>;
+  expect(userContent.some(c => c.type === "text")).toBe(true);
+  expect(userContent.some(c => c.type === "image_url" && c.image_url?.url === "data:image/jpeg;base64,XXX")).toBe(true);
 });
