@@ -63,6 +63,17 @@ test("rejects items with non-numeric kolicina", () => {
   expect(() => parseModelResponse(raw)).toThrow(/kolicina/);
 });
 
+test("accepts bare array response as items", () => {
+  const raw = JSON.stringify([
+    { naziv: "FILTER UNUTRAŠNJEG", kolicina: 1, jedinicna_cijena: 26, popust: 0 },
+    { naziv: "FILTER ZRAKA", kolicina: 1, jedinicna_cijena: 32, popust: 0 },
+  ]);
+  const result = parseModelResponse(raw);
+  expect(result.items.length).toBe(2);
+  expect(result.items[0]!.naziv).toBe("FILTER UNUTRAŠNJEG");
+  expect(result.warnings).toEqual([]);
+});
+
 test("rejects when items is missing", () => {
   expect(() => parseModelResponse('{"warnings":[]}')).toThrow(/items/);
 });

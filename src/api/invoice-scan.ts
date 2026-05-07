@@ -61,7 +61,9 @@ export function parseModelResponse(raw: string): ScanInvoiceResponse {
     throw new Error("Model response is not an object");
   }
 
-  const obj = parsed as Record<string, unknown>;
+  const obj: Record<string, unknown> = Array.isArray(parsed)
+    ? { items: parsed, warnings: [] }
+    : (parsed as Record<string, unknown>);
 
   if (!Array.isArray(obj.items)) {
     throw new Error("Field 'items' is missing or not an array");
