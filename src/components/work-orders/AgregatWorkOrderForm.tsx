@@ -27,13 +27,13 @@ interface AgregatWorkOrderFormProps {
 const TIP_AGREGATA_OPTIONS: TipAgregata[] = ['alnaser', 'alternator', 'klima_kompresor', 'elektricni_uredjaj', 'ostalo'];
 
 export function AgregatWorkOrderForm({ workOrderId, onBack, onSaved }: AgregatWorkOrderFormProps) {
-  const { user, isMechanic } = useAuth();
+  const { user } = useAuth();
   const [mechanics, setMechanics] = useState<Mechanic[]>([]);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const initialMechanicId = !workOrderId && isMechanic && user?.mechanic_id ? user.mechanic_id : undefined;
+  const initialMechanicId = !workOrderId && user?.mechanic_id ? user.mechanic_id : undefined;
 
   const [formData, setFormData] = useState<WorkOrderFormAgregat>({
     tip_naloga: 'agregat',
