@@ -724,6 +724,7 @@ export function exportWorkOrdersCSV(req: Request): Response {
   // CSV headers
   const headers = [
     'broj_naloga',
+    'tip_naloga',
     'status',
     'created_at',
     'closed_at',
@@ -733,6 +734,10 @@ export function exportWorkOrdersCSV(req: Request): Response {
     'model_vozila',
     'motor',
     'kilometraza',
+    'tip_agregata',
+    'marka_agregata',
+    'model_agregata',
+    'serijski_broj',
     'opis_kvara',
     'napomena',
     'ukupna_cijena',
@@ -776,6 +781,7 @@ export function exportWorkOrdersCSV(req: Request): Response {
 
     const row = [
       escapeCSV(wo.broj_naloga),
+      escapeCSV(wo.tip_naloga),
       escapeCSV(wo.status),
       escapeCSV(wo.created_at),
       escapeCSV(wo.closed_at),
@@ -785,6 +791,10 @@ export function exportWorkOrdersCSV(req: Request): Response {
       escapeCSV(wo.model_vozila),
       escapeCSV(wo.motor),
       escapeCSV(wo.kilometraza),
+      escapeCSV(wo.tip_agregata),
+      escapeCSV(wo.marka_agregata),
+      escapeCSV(wo.model_agregata),
+      escapeCSV(wo.serijski_broj),
       escapeCSV(wo.opis_kvara),
       escapeCSV(wo.napomena),
       escapeCSV(wo.ukupna_cijena),
@@ -906,19 +916,24 @@ export async function importWorkOrdersCSV(req: Request): Promise<Response> {
         }
 
         // Create work order
-        const workOrderResult = db.query<{ id: number }, [string, number, string, string | null, string, string, string | null, number | null, number | null, string | null, string | null, string, string, string | null]>(
+        const workOrderResult = db.query<{ id: number }, [string, number, string, string, string | null, string, string, string | null, number | null, string | null, string | null, string | null, string | null, number | null, string | null, string | null, string, string, string | null]>(
           `INSERT INTO work_orders
-           (broj_naloga, customer_id, registarske_tablice, vin_broj, marka_vozila, model_vozila, motor, kilometraza, mechanic_id, opis_kvara, napomena, status, created_at, closed_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`
+           (broj_naloga, customer_id, tip_naloga, registarske_tablice, vin_broj, marka_vozila, model_vozila, motor, kilometraza, tip_agregata, marka_agregata, model_agregata, serijski_broj, mechanic_id, opis_kvara, napomena, status, created_at, closed_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`
         ).get(
           data.broj_naloga || '',
           customerId,
+          data.tip_naloga === 'agregat' ? 'agregat' : 'auto',
           data.registarske_tablice || '',
           data.vin_broj || null,
           data.marka_vozila || '',
           data.model_vozila || '',
           data.motor || null,
           data.kilometraza ? parseInt(data.kilometraza) : null,
+          data.tip_agregata || null,
+          data.marka_agregata || null,
+          data.model_agregata || null,
+          data.serijski_broj || null,
           mechanicId,
           data.opis_kvara || null,
           data.napomena || null,
