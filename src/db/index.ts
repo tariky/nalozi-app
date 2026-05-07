@@ -2,6 +2,13 @@ import { Database } from "bun:sqlite";
 import { mkdirSync, copyFileSync, existsSync } from "fs";
 import { createTablesSQL } from "./schema";
 
+class BackupError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'BackupError';
+  }
+}
+
 let db: Database | null = null;
 let adminSeeded = false;
 
@@ -84,7 +91,7 @@ function runMigrations(db: Database): void {
       !columnNames.has('serijski_broj');
 
     if (needsAgregatMigration) {
-      backupDatabaseFile();
+      backupDatabaseFile(process.env.DB_PATH ?? "data/asnord.db");
       if (!columnNames.has('tip_naloga')) {
         db.exec("ALTER TABLE work_orders ADD COLUMN tip_naloga TEXT NOT NULL DEFAULT 'auto'");
       }
@@ -120,7 +127,7 @@ function runMigrations(db: Database): void {
       db.exec("ALTER TABLE sessions ADD COLUMN csrf_token TEXT");
     }
   } catch (err) {
-    if (err instanceof Error && err.message.startsWith("Database backup failed")) {
+    if (err instanceof BackupError) {
       throw err;
     }
     // Other migration errors (e.g. duplicate column on re-run) are silently ignored
@@ -128,8 +135,7 @@ function runMigrations(db: Database): void {
   }
 }
 
-function backupDatabaseFile(): void {
-  const dbPath = process.env.DB_PATH ?? "data/asnord.db";
+function backupDatabaseFile(dbPath: string): void {
   // No backup for in-memory DBs (tests)
   if (dbPath === ":memory:") return;
   // Skip if the source file doesn't exist (fresh install — nothing to back up)
@@ -142,7 +148,7 @@ function backupDatabaseFile(): void {
     console.log(`✅ Database backup created at ${backupPath}`);
   } catch (err) {
     console.error(`❌ Failed to create database backup at ${backupPath}:`, err);
-    throw new Error(`Database backup failed; aborting migration: ${(err as Error).message}`);
+    throw new BackupError(`Database backup failed; aborting migration: ${(err as Error).message}`);
   }
 }
 
