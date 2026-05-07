@@ -29,11 +29,12 @@ import { WorkOrderSearch } from "./WorkOrderSearch";
 import { SalesOverview } from "@/components/analytics/SalesOverview";
 import { workOrdersApi } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
-import { formatDate, formatCurrency, getStatusLabel, getStatusColor, formatDuration } from "@/lib/formatters";
+import { formatDate, formatCurrency, getStatusLabel, getStatusColor, formatDuration, getTipNalogaLabel, getTipAgregataLabel } from "@/lib/formatters";
 import type { WorkOrder, PaginatedResponse } from "@/types";
 
 interface WorkOrderListProps {
-  onNew: () => void;
+  onNewAuto: () => void;
+  onNewAgregat: () => void;
   onView: (id: number) => void;
   onEdit: (id: number) => void;
   onPrintPDF: (workOrder: WorkOrder) => void;
@@ -44,6 +45,7 @@ interface CacheEntry {
   data: PaginatedResponse<WorkOrder>;
   page: number;
   statusFilter: string;
+  tipFilter: 'all' | 'auto' | 'agregat';
   timestamp: number;
 }
 let workOrdersCache: CacheEntry | null = null;
@@ -54,10 +56,11 @@ export function invalidateWorkOrdersCache() {
   workOrdersCache = null;
 }
 
-export function WorkOrderList({ onNew, onView, onEdit, onPrintPDF }: WorkOrderListProps) {
+export function WorkOrderList({ onNewAuto, onNewAgregat, onView, onEdit, onPrintPDF }: WorkOrderListProps) {
   const { isAdmin } = useAuth();
   const [page, setPage] = useState(1);
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [tipFilter, setTipFilter] = useState<'all' | 'auto' | 'agregat'>('all');
 
   // Initialize from cache if valid
   const getCachedData = () => {
@@ -65,6 +68,7 @@ export function WorkOrderList({ onNew, onView, onEdit, onPrintPDF }: WorkOrderLi
       workOrdersCache &&
       workOrdersCache.page === page &&
       workOrdersCache.statusFilter === statusFilter &&
+      workOrdersCache.tipFilter === tipFilter &&
       Date.now() - workOrdersCache.timestamp < CACHE_TTL
     ) {
       return workOrdersCache.data;
@@ -79,13 +83,16 @@ export function WorkOrderList({ onNew, onView, onEdit, onPrintPDF }: WorkOrderLi
 
   const loadWorkOrders = async (showLoading = true) => {
     if (showLoading && !data) setLoading(true);
-    const filters = statusFilter !== "all" ? { status: statusFilter } : undefined;
-    const result = await workOrdersApi.getAll(page, 20, filters);
+    const filters: { status?: string; tip_naloga?: 'auto' | 'agregat' } = {};
+    if (statusFilter !== 'all') filters.status = statusFilter;
+    if (tipFilter !== 'all') filters.tip_naloga = tipFilter;
+    const result = await workOrdersApi.getAll(page, 20, Object.keys(filters).length > 0 ? filters : undefined);
     if (result.success && result.data) {
       workOrdersCache = {
         data: result.data,
         page,
         statusFilter,
+        tipFilter,
         timestamp: Date.now(),
       };
       setData(result.data);
@@ -103,7 +110,7 @@ export function WorkOrderList({ onNew, onView, onEdit, onPrintPDF }: WorkOrderLi
     } else {
       loadWorkOrders(true);
     }
-  }, [page, statusFilter]);
+  }, [page, statusFilter, tipFilter]);
 
   const handleDelete = async (id: number) => {
     if (confirm("Da li ste sigurni da želite obrisati ovaj radni nalog?")) {
@@ -198,10 +205,22 @@ export function WorkOrderList({ onNew, onView, onEdit, onPrintPDF }: WorkOrderLi
                   />
                 </div>
               )}
-              <Button onClick={onNew}>
-                <Plus className="h-4 w-4 mr-2" />
-                Novi nalog
-              </Button>
+              <div className="flex flex-wrap items-center gap-2">
+                <Button onClick={onNewAuto} size="sm">
+                  <Plus className="h-4 w-4 mr-1" />
+                  Novi auto nalog
+                </Button>
+                <Button onClick={onNewAgregat} size="sm" variant="outline">
+                  <Plus className="h-4 w-4 mr-1" />
+                  Novi agregat nalog
+                </Button>
+                {/* Tip filter (segmented) */}
+                <div className="ml-auto flex gap-1">
+                  <Button size="sm" variant={tipFilter === 'all' ? 'default' : 'outline'} onClick={() => setTipFilter('all')}>Sve</Button>
+                  <Button size="sm" variant={tipFilter === 'auto' ? 'default' : 'outline'} onClick={() => setTipFilter('auto')}>Auto</Button>
+                  <Button size="sm" variant={tipFilter === 'agregat' ? 'default' : 'outline'} onClick={() => setTipFilter('agregat')}>Agregat</Button>
+                </div>
+              </div>
             </div>
           </TooltipProvider>
         }
@@ -239,7 +258,7 @@ export function WorkOrderList({ onNew, onView, onEdit, onPrintPDF }: WorkOrderLi
         ) : !data || data.items.length === 0 ? (
           <div className="p-8 sm:p-12 text-center">
             <p className="text-muted-foreground mb-4">Nema radnih naloga</p>
-            <Button onClick={onNew} variant="outline">
+            <Button onClick={onNewAuto} variant="outline">
               <Plus className="h-4 w-4 mr-2" />
               Kreiraj prvi nalog
             </Button>
@@ -252,6 +271,7 @@ export function WorkOrderList({ onNew, onView, onEdit, onPrintPDF }: WorkOrderLi
                 <TableHeader>
                   <TableRow>
                     <TableHead>Broj naloga</TableHead>
+                    <TableHead>Tip</TableHead>
                     <TableHead>Klijent</TableHead>
                     <TableHead>Vozilo</TableHead>
                     <TableHead>Datum</TableHead>
@@ -270,6 +290,11 @@ export function WorkOrderList({ onNew, onView, onEdit, onPrintPDF }: WorkOrderLi
                         {wo.broj_naloga}
                       </TableCell>
                       <TableCell onClick={() => onView(wo.id)}>
+                        <Badge variant="outline" className={wo.tip_naloga === 'agregat' ? 'border-orange-500 text-orange-600' : 'border-blue-500 text-blue-600'}>
+                          {getTipNalogaLabel(wo.tip_naloga)}
+                        </Badge>
+                      </TableCell>
+                      <TableCell onClick={() => onView(wo.id)}>
                         <div className="font-medium">
                           {wo.customer?.ime} {wo.customer?.prezime}
                         </div>
@@ -280,10 +305,21 @@ export function WorkOrderList({ onNew, onView, onEdit, onPrintPDF }: WorkOrderLi
                         )}
                       </TableCell>
                       <TableCell onClick={() => onView(wo.id)}>
-                        <div>{wo.marka_vozila} {wo.model_vozila}</div>
-                        <div className="text-sm text-muted-foreground font-mono">
-                          {wo.registarske_tablice}
-                        </div>
+                        {wo.tip_naloga === 'agregat' ? (
+                          <>
+                            <div>{getTipAgregataLabel(wo.tip_agregata)}</div>
+                            {wo.marka_agregata && (
+                              <div className="text-sm text-muted-foreground">{wo.marka_agregata}</div>
+                            )}
+                          </>
+                        ) : (
+                          <>
+                            <div>{wo.marka_vozila} {wo.model_vozila}</div>
+                            <div className="text-sm text-muted-foreground font-mono">
+                              {wo.registarske_tablice}
+                            </div>
+                          </>
+                        )}
                       </TableCell>
                       <TableCell onClick={() => onView(wo.id)}>
                         {formatDate(wo.created_at)}
@@ -334,9 +370,14 @@ export function WorkOrderList({ onNew, onView, onEdit, onPrintPDF }: WorkOrderLi
                         </span>
                       </div>
                     </div>
-                    <Badge className={getStatusColor(wo.status)}>
-                      {getStatusLabel(wo.status)}
-                    </Badge>
+                    <div className="flex items-center gap-1">
+                      <Badge variant="outline" className={wo.tip_naloga === 'agregat' ? 'border-orange-500 text-orange-600' : 'border-blue-500 text-blue-600'}>
+                        {getTipNalogaLabel(wo.tip_naloga)}
+                      </Badge>
+                      <Badge className={getStatusColor(wo.status)}>
+                        {getStatusLabel(wo.status)}
+                      </Badge>
+                    </div>
                   </div>
                   <div className="text-sm font-medium text-foreground mb-1">
                     {wo.customer?.ime} {wo.customer?.prezime}
@@ -345,7 +386,11 @@ export function WorkOrderList({ onNew, onView, onEdit, onPrintPDF }: WorkOrderLi
                     )}
                   </div>
                   <div className="text-sm text-muted-foreground mb-2">
-                    {wo.marka_vozila} {wo.model_vozila} • {wo.registarske_tablice}
+                    {wo.tip_naloga === 'agregat' ? (
+                      <span>{getTipAgregataLabel(wo.tip_agregata)}{wo.marka_agregata ? ' · ' + wo.marka_agregata : ''}</span>
+                    ) : (
+                      <span>{wo.marka_vozila} {wo.model_vozila}{wo.registarske_tablice ? ' · ' + wo.registarske_tablice : ''}</span>
+                    )}
                   </div>
                   <div className="flex items-center justify-between">
                     <span className="text-lg font-semibold text-foreground">

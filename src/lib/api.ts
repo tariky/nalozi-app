@@ -142,9 +142,10 @@ export const vehiclesApi = {
 
 // Work Orders API
 export const workOrdersApi = {
-  getAll: (page = 1, limit = 20, filters?: { status?: string }) => {
+  getAll: (page = 1, limit = 20, filters?: { status?: string; tip_naloga?: 'auto' | 'agregat' }) => {
     const params = new URLSearchParams({ page: String(page), limit: String(limit) });
     if (filters?.status) params.set('status', filters.status);
+    if (filters?.tip_naloga) params.set('tip_naloga', filters.tip_naloga);
     return fetchApi<PaginatedResponse<WorkOrder>>(`/work-orders?${params}`);
   },
 
