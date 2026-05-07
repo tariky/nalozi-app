@@ -6,7 +6,7 @@ import { WorkOrderItems } from "./WorkOrderItems";
 import { TimeTracker } from "./TimeTracker";
 import { workOrdersApi } from "@/lib/api";
 import { invalidateWorkOrdersCache } from "./WorkOrderList";
-import { formatDate, formatCurrency, getStatusLabel, getStatusColor } from "@/lib/formatters";
+import { formatDate, formatCurrency, getStatusLabel, getStatusColor, getTipNalogaLabel, getTipAgregataLabel } from "@/lib/formatters";
 import type { WorkOrder } from "@/types";
 
 interface WorkOrderDetailProps {
@@ -86,7 +86,7 @@ export function WorkOrderDetail({
           <div className="min-w-0">
             <div className="flex items-center gap-2">
               <h1 className="text-lg sm:text-2xl font-semibold text-foreground truncate">
-                {workOrder.broj_naloga}
+                {workOrder.broj_naloga} · {getTipNalogaLabel(workOrder.tip_naloga)}
               </h1>
               <Badge className={`${getStatusColor(workOrder.status)} text-xs shrink-0`}>
                 {getStatusLabel(workOrder.status)}
@@ -186,14 +186,29 @@ export function WorkOrderDetail({
 
         {/* Vehicle row */}
         <div className="grid grid-cols-2 gap-2 text-sm">
-          <div>
-            <span className="text-xs text-muted-foreground">Vozilo</span>
-            <p className="font-medium">{workOrder.marka_vozila} {workOrder.model_vozila}</p>
-          </div>
-          <div>
-            <span className="text-xs text-muted-foreground">Tablice</span>
-            <p className="font-medium font-mono">{workOrder.registarske_tablice}</p>
-          </div>
+          {workOrder.tip_naloga === 'agregat' ? (
+            <>
+              <div>
+                <span className="text-xs text-muted-foreground">Agregat</span>
+                <p className="font-medium">{getTipAgregataLabel(workOrder.tip_agregata)}</p>
+              </div>
+              <div>
+                <span className="text-xs text-muted-foreground">Marka</span>
+                <p className="font-medium">{workOrder.marka_agregata || '-'}</p>
+              </div>
+            </>
+          ) : (
+            <>
+              <div>
+                <span className="text-xs text-muted-foreground">Vozilo</span>
+                <p className="font-medium">{workOrder.marka_vozila} {workOrder.model_vozila}</p>
+              </div>
+              <div>
+                <span className="text-xs text-muted-foreground">Tablice</span>
+                <p className="font-medium font-mono">{workOrder.registarske_tablice}</p>
+              </div>
+            </>
+          )}
         </div>
 
         {/* Optional fields row */}
@@ -255,48 +270,72 @@ export function WorkOrderDetail({
           </div>
         </div>
 
-        {/* Vehicle */}
-        <div className="bg-card rounded-none border border-border p-6">
-          <h2 className="text-lg font-medium text-foreground mb-4">Vozilo</h2>
-          <div className="space-y-3">
-            <div className="grid grid-cols-2 gap-4">
+        {/* Vehicle / Agregat */}
+        {workOrder.tip_naloga === 'agregat' ? (
+          <div className="bg-card rounded-none border border-border p-6">
+            <h2 className="text-lg font-medium text-foreground mb-4">Agregat</h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <span className="text-sm text-muted-foreground">Marka</span>
-                <p className="font-medium">{workOrder.marka_vozila}</p>
+                <span className="text-xs text-muted-foreground">Tip</span>
+                <p className="font-medium">{getTipAgregataLabel(workOrder.tip_agregata)}</p>
               </div>
               <div>
-                <span className="text-sm text-muted-foreground">Model</span>
-                <p className="font-medium">{workOrder.model_vozila}</p>
+                <span className="text-xs text-muted-foreground">Marka</span>
+                <p className="font-medium">{workOrder.marka_agregata || '-'}</p>
+              </div>
+              <div>
+                <span className="text-xs text-muted-foreground">Model</span>
+                <p className="font-medium">{workOrder.model_agregata || '-'}</p>
+              </div>
+              <div>
+                <span className="text-xs text-muted-foreground">Serijski broj</span>
+                <p className="font-medium font-mono">{workOrder.serijski_broj || '-'}</p>
               </div>
             </div>
-            <div>
-              <span className="text-sm text-muted-foreground">Registarske tablice</span>
-              <p className="font-medium font-mono">
-                {workOrder.registarske_tablice}
-              </p>
-            </div>
-            {workOrder.vin_broj && (
+          </div>
+        ) : (
+          <div className="bg-card rounded-none border border-border p-6">
+            <h2 className="text-lg font-medium text-foreground mb-4">Vozilo</h2>
+            <div className="space-y-3">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <span className="text-sm text-muted-foreground">Marka</span>
+                  <p className="font-medium">{workOrder.marka_vozila}</p>
+                </div>
+                <div>
+                  <span className="text-sm text-muted-foreground">Model</span>
+                  <p className="font-medium">{workOrder.model_vozila}</p>
+                </div>
+              </div>
               <div>
-                <span className="text-sm text-muted-foreground">VIN broj</span>
-                <p className="font-medium font-mono text-sm">
-                  {workOrder.vin_broj}
+                <span className="text-sm text-muted-foreground">Registarske tablice</span>
+                <p className="font-medium font-mono">
+                  {workOrder.registarske_tablice}
                 </p>
               </div>
-            )}
-            {workOrder.motor && (
-              <div>
-                <span className="text-sm text-muted-foreground">Motor</span>
-                <p className="font-medium">{workOrder.motor}</p>
-              </div>
-            )}
-            {workOrder.kilometraza && (
-              <div>
-                <span className="text-sm text-muted-foreground">Kilometraža</span>
-                <p className="font-medium">{workOrder.kilometraza.toLocaleString()} km</p>
-              </div>
-            )}
+              {workOrder.vin_broj && (
+                <div>
+                  <span className="text-sm text-muted-foreground">VIN broj</span>
+                  <p className="font-medium font-mono text-sm">
+                    {workOrder.vin_broj}
+                  </p>
+                </div>
+              )}
+              {workOrder.motor && (
+                <div>
+                  <span className="text-sm text-muted-foreground">Motor</span>
+                  <p className="font-medium">{workOrder.motor}</p>
+                </div>
+              )}
+              {workOrder.kilometraza && (
+                <div>
+                  <span className="text-sm text-muted-foreground">Kilometraža</span>
+                  <p className="font-medium">{workOrder.kilometraza.toLocaleString()} km</p>
+                </div>
+              )}
+            </div>
           </div>
-        </div>
+        )}
       </div>
 
       {/* Desktop: Mechanic */}
