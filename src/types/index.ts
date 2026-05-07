@@ -30,16 +30,27 @@ export interface Vehicle {
   created_at: string;
 }
 
+export type TipNaloga = 'auto' | 'agregat';
+export type TipAgregata = 'alnaser' | 'alternator' | 'klima_kompresor' | 'elektricni_uredjaj' | 'ostalo';
+
 export interface WorkOrder {
   id: number;
   broj_naloga: string;
   customer_id: number;
+  tip_naloga: TipNaloga;
+  // Auto fields ('' for agregat orders, real values for auto)
   registarske_tablice: string;
-  vin_broj: string | null;
   marka_vozila: string;
   model_vozila: string;
+  vin_broj: string | null;
   motor: string | null;
   kilometraza: number | null;
+  // Agregat fields (null for auto orders)
+  tip_agregata: TipAgregata | null;
+  marka_agregata: string | null;
+  model_agregata: string | null;
+  serijski_broj: string | null;
+  // Common
   mechanic_id: number | null;
   opis_kvara: string | null;
   napomena: string | null;
@@ -100,7 +111,8 @@ export interface VehicleForm {
   motor?: string;
 }
 
-export interface WorkOrderForm {
+export type WorkOrderFormAuto = {
+  tip_naloga: 'auto';
   customer_id: number;
   registarske_tablice: string;
   vin_broj?: string;
@@ -112,7 +124,22 @@ export interface WorkOrderForm {
   opis_kvara?: string;
   napomena?: string;
   status?: 'otvoren' | 'u_toku' | 'zavrsen';
-}
+};
+
+export type WorkOrderFormAgregat = {
+  tip_naloga: 'agregat';
+  customer_id: number;
+  tip_agregata: TipAgregata;
+  marka_agregata: string;
+  model_agregata?: string;
+  serijski_broj?: string;
+  mechanic_id?: number;
+  opis_kvara?: string;
+  napomena?: string;
+  status?: 'otvoren' | 'u_toku' | 'zavrsen';
+};
+
+export type WorkOrderForm = WorkOrderFormAuto | WorkOrderFormAgregat;
 
 export interface WorkOrderItemForm {
   tip: 'dio' | 'usluga';
