@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { Layout } from "@/components/layout/Layout";
 import { WorkOrderList } from "@/components/work-orders/WorkOrderList";
 import { WorkOrderForm } from "@/components/work-orders/WorkOrderForm";
+import { AgregatWorkOrderForm } from "@/components/work-orders/AgregatWorkOrderForm";
 import { WorkOrderDetail } from "@/components/work-orders/WorkOrderDetail";
 import { CustomerList } from "@/components/customers/CustomerList";
 import { CustomerDetail } from "@/components/customers/CustomerDetail";
@@ -17,7 +18,8 @@ import "./index.css";
 
 type Page =
   | "work-orders"
-  | "work-orders-new"
+  | "work-orders-new-auto"
+  | "work-orders-new-agregat"
   | "work-orders-edit"
   | "work-orders-detail"
   | "customers"
@@ -31,6 +33,7 @@ function AppContent() {
   const [page, setPage] = useState<Page>("work-orders");
   const [selectedWorkOrderId, setSelectedWorkOrderId] = useState<number | null>(null);
   const [selectedCustomerId, setSelectedCustomerId] = useState<number | null>(null);
+  const [editTipNaloga, setEditTipNaloga] = useState<'auto' | 'agregat' | null>(null);
 
   // Handle browser back/forward
   useEffect(() => {
@@ -38,14 +41,24 @@ function AppContent() {
       const hash = window.location.hash.slice(1) || "work-orders";
       const [mainPage, subPage, id] = hash.split("/");
 
-      if (mainPage === "work-orders" && subPage === "new") {
-        setPage("work-orders-new");
+      if (mainPage === "work-orders" && subPage === "new" && id === "auto") {
+        setPage("work-orders-new-auto");
+        setSelectedWorkOrderId(null);
+        setSelectedCustomerId(null);
+      } else if (mainPage === "work-orders" && subPage === "new" && id === "agregat") {
+        setPage("work-orders-new-agregat");
+        setSelectedWorkOrderId(null);
+        setSelectedCustomerId(null);
+      } else if (mainPage === "work-orders" && subPage === "new") {
+        // Backward compat: old "new" links default to auto
+        setPage("work-orders-new-auto");
         setSelectedWorkOrderId(null);
         setSelectedCustomerId(null);
       } else if (mainPage === "work-orders" && subPage === "edit" && id) {
         setSelectedWorkOrderId(parseInt(id));
         setSelectedCustomerId(null);
         setPage("work-orders-edit");
+        setEditTipNaloga(null);
       } else if (mainPage === "work-orders" && subPage === "view" && id) {
         setSelectedWorkOrderId(parseInt(id));
         setSelectedCustomerId(null);
@@ -71,6 +84,16 @@ function AppContent() {
     return () => window.removeEventListener("hashchange", handleHash);
   }, []);
 
+  useEffect(() => {
+    if (page === "work-orders-edit" && selectedWorkOrderId !== null) {
+      workOrdersApi.getById(selectedWorkOrderId).then(result => {
+        if (result.success && result.data) {
+          setEditTipNaloga(result.data.tip_naloga);
+        }
+      });
+    }
+  }, [page, selectedWorkOrderId]);
+
   const navigate = (newPage: string) => {
     window.location.hash = newPage;
   };
@@ -92,14 +115,15 @@ function AppContent() {
       case "work-orders":
         return (
           <WorkOrderList
-            onNew={() => navigate("work-orders/new")}
+            onNewAuto={() => navigate("work-orders/new/auto")}
+            onNewAgregat={() => navigate("work-orders/new/agregat")}
             onView={(id) => navigate(`work-orders/view/${id}`)}
             onEdit={(id) => navigate(`work-orders/edit/${id}`)}
             onPrintPDF={handlePrintPDF}
           />
         );
 
-      case "work-orders-new":
+      case "work-orders-new-auto":
         return (
           <WorkOrderForm
             onBack={() => navigate("work-orders")}
@@ -107,7 +131,29 @@ function AppContent() {
           />
         );
 
+      case "work-orders-new-agregat":
+        return (
+          <AgregatWorkOrderForm
+            onBack={() => navigate("work-orders")}
+            onSaved={(workOrder) => navigate(`work-orders/view/${workOrder.id}`)}
+          />
+        );
+
       case "work-orders-edit":
+        if (editTipNaloga === 'agregat') {
+          return (
+            <AgregatWorkOrderForm
+              workOrderId={selectedWorkOrderId || undefined}
+              onBack={() =>
+                selectedWorkOrderId
+                  ? navigate(`work-orders/view/${selectedWorkOrderId}`)
+                  : navigate("work-orders")
+              }
+              onSaved={(workOrder) => navigate(`work-orders/view/${workOrder.id}`)}
+            />
+          );
+        }
+        // Default to auto when tip not yet loaded or auto
         return (
           <WorkOrderForm
             workOrderId={selectedWorkOrderId || undefined}
