@@ -1,6 +1,8 @@
 import { getDB, generateWorkOrderNumber } from '../db';
 import { getCurrentUser, requireAuth, validateCsrf } from './auth';
-import type { WorkOrder, WorkOrderForm, WorkOrderItem, WorkOrderItemForm, Customer, Mechanic, TimeEntry } from '../types';
+import type { WorkOrder, WorkOrderForm, WorkOrderFormAuto, WorkOrderFormAgregat, WorkOrderItem, WorkOrderItemForm, Customer, Mechanic, TimeEntry } from '../types';
+
+const TIP_AGREGATA_VALUES = new Set(['alnaser', 'alternator', 'klima_kompresor', 'elektricni_uredjaj', 'ostalo']);
 
 // Helper to get work order with related data
 function getWorkOrderWithDetails(id: number): WorkOrder | null {
@@ -59,6 +61,7 @@ export function getWorkOrders(req: Request): Response {
   const page = parseInt(url.searchParams.get('page') || '1');
   const limit = parseInt(url.searchParams.get('limit') || '20');
   const status = url.searchParams.get('status');
+  const tipNaloga = url.searchParams.get('tip_naloga');
   const offset = (page - 1) * limit;
 
   // Get current user to check role
@@ -78,6 +81,11 @@ export function getWorkOrders(req: Request): Response {
   if (status) {
     whereClauses.push('wo.status = ?');
     params.push(status);
+  }
+
+  if (tipNaloga === 'auto' || tipNaloga === 'agregat') {
+    whereClauses.push('wo.tip_naloga = ?');
+    params.push(tipNaloga);
   }
 
   const whereClause = whereClauses.length > 0 ? 'WHERE ' + whereClauses.join(' AND ') : '';
@@ -147,7 +155,10 @@ export function searchWorkOrders(req: Request): Response {
 
   // Build mechanic filter if needed
   let mechanicFilter = '';
-  const params: (string | number)[] = [searchPattern, searchPattern, searchPattern, searchPattern];
+  const params: (string | number)[] = [
+    searchPattern, searchPattern, searchPattern, searchPattern,
+    searchPattern, searchPattern, searchPattern,
+  ];
 
   if (currentUser && currentUser.role === 'mechanic' && currentUser.mechanic_id) {
     mechanicFilter = 'AND wo.mechanic_id = ?';
@@ -161,7 +172,10 @@ export function searchWorkOrders(req: Request): Response {
      WHERE (wo.vin_broj LIKE ?
         OR wo.registarske_tablice LIKE ?
         OR c.ime LIKE ?
-        OR c.prezime LIKE ?)
+        OR c.prezime LIKE ?
+        OR wo.serijski_broj LIKE ?
+        OR wo.marka_agregata LIKE ?
+        OR wo.model_agregata LIKE ?)
         ${mechanicFilter}
      ORDER BY wo.created_at DESC
      LIMIT 50`
@@ -234,37 +248,93 @@ export function getWorkOrderById(req: Request): Response {
 
 // POST /api/work-orders - Create work order
 export async function createWorkOrder(req: Request): Promise<Response> {
-  // Require authentication + CSRF validation
   const authResult = requireAuth(req);
   if (authResult instanceof Response) return authResult;
   const csrfError = validateCsrf(req);
   if (csrfError) return csrfError;
 
-  const data: WorkOrderForm = await req.json();
+  const data = await req.json() as Partial<WorkOrderForm> & { tip_naloga?: string };
 
-  if (!data.customer_id || !data.registarske_tablice || !data.marka_vozila || !data.model_vozila) {
-    return Response.json({
-      message: 'Klijent, registarske tablice, marka i model vozila su obavezni'
-    }, { status: 400 });
+  // Default missing tip_naloga to 'auto' for backward compatibility
+  const tip = data.tip_naloga ?? 'auto';
+  if (tip !== 'auto' && tip !== 'agregat') {
+    return Response.json({ message: 'Tip naloga je nevalidan' }, { status: 400 });
+  }
+
+  if (!data.customer_id) {
+    return Response.json({ message: 'Klijent je obavezan' }, { status: 400 });
+  }
+
+  let registarske_tablice: string;
+  let vin_broj: string | null;
+  let marka_vozila: string;
+  let model_vozila: string;
+  let motor: string | null;
+  let kilometraza: number | null;
+  let tip_agregata: string | null;
+  let marka_agregata: string | null;
+  let model_agregata: string | null;
+  let serijski_broj: string | null;
+
+  if (tip === 'auto') {
+    const autoData = data as WorkOrderFormAuto;
+    if (!autoData.registarske_tablice || !autoData.marka_vozila || !autoData.model_vozila) {
+      return Response.json({
+        message: 'Registarske tablice, marka i model vozila su obavezni za auto nalog'
+      }, { status: 400 });
+    }
+    registarske_tablice = autoData.registarske_tablice;
+    vin_broj = autoData.vin_broj || null;
+    marka_vozila = autoData.marka_vozila;
+    model_vozila = autoData.model_vozila;
+    motor = autoData.motor || null;
+    kilometraza = autoData.kilometraza ?? null;
+    tip_agregata = null;
+    marka_agregata = null;
+    model_agregata = null;
+    serijski_broj = null;
+  } else {
+    const agData = data as WorkOrderFormAgregat;
+    if (!agData.tip_agregata || !TIP_AGREGATA_VALUES.has(agData.tip_agregata)) {
+      return Response.json({ message: 'Tip agregata je obavezan i mora biti validan' }, { status: 400 });
+    }
+    if (!agData.marka_agregata || !agData.marka_agregata.trim()) {
+      return Response.json({ message: 'Marka agregata je obavezna' }, { status: 400 });
+    }
+    registarske_tablice = '';
+    vin_broj = null;
+    marka_vozila = '';
+    model_vozila = '';
+    motor = null;
+    kilometraza = null;
+    tip_agregata = agData.tip_agregata;
+    marka_agregata = agData.marka_agregata.trim();
+    model_agregata = agData.model_agregata?.trim() || null;
+    serijski_broj = agData.serijski_broj?.trim() || null;
   }
 
   const db = getDB();
   const brojNaloga = generateWorkOrderNumber();
   const createdAt = new Date().toISOString();
 
-  const result = db.query<{ id: number }, [string, number, string, string | null, string, string, string | null, number | null, number | null, string | null, string | null, string, string]>(
+  const result = db.query<{ id: number }, [string, number, string, string, string | null, string, string, string | null, number | null, string | null, string | null, string | null, string | null, number | null, string | null, string | null, string, string]>(
     `INSERT INTO work_orders
-     (broj_naloga, customer_id, registarske_tablice, vin_broj, marka_vozila, model_vozila, motor, kilometraza, mechanic_id, opis_kvara, napomena, status, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`
+     (broj_naloga, customer_id, tip_naloga, registarske_tablice, vin_broj, marka_vozila, model_vozila, motor, kilometraza, tip_agregata, marka_agregata, model_agregata, serijski_broj, mechanic_id, opis_kvara, napomena, status, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`
   ).get(
     brojNaloga,
     data.customer_id,
-    data.registarske_tablice,
-    data.vin_broj || null,
-    data.marka_vozila,
-    data.model_vozila,
-    data.motor || null,
-    data.kilometraza ?? null,
+    tip,
+    registarske_tablice,
+    vin_broj,
+    marka_vozila,
+    model_vozila,
+    motor,
+    kilometraza,
+    tip_agregata,
+    marka_agregata,
+    model_agregata,
+    serijski_broj,
     data.mechanic_id ?? null,
     data.opis_kvara || null,
     data.napomena || null,
@@ -286,7 +356,7 @@ export async function updateWorkOrder(req: Request): Promise<Response> {
 
   const url = new URL(req.url);
   const id = parseInt(url.pathname.split('/').pop() || '0');
-  const data: Partial<WorkOrderForm> = await req.json();
+  const data: Record<string, any> = await req.json();
 
   const db = getDB();
 
@@ -304,6 +374,11 @@ export async function updateWorkOrder(req: Request): Promise<Response> {
     if (existing.mechanic_id !== authResult.mechanic_id) {
       return Response.json({ message: 'Nemate pristup ovom radnom nalogu' }, { status: 403 });
     }
+  }
+
+  // Reject tip_naloga changes
+  if (data.tip_naloga !== undefined && data.tip_naloga !== existing.tip_naloga) {
+    return Response.json({ message: 'Tip naloga se ne može mijenjati nakon kreiranja' }, { status: 400 });
   }
 
   // Build update query dynamically
@@ -349,6 +424,25 @@ export async function updateWorkOrder(req: Request): Promise<Response> {
   if (data.napomena !== undefined) {
     updates.push('napomena = ?');
     values.push(data.napomena || null);
+  }
+  if (data.tip_agregata !== undefined) {
+    if (data.tip_agregata !== null && !TIP_AGREGATA_VALUES.has(data.tip_agregata)) {
+      return Response.json({ message: 'Tip agregata je nevalidan' }, { status: 400 });
+    }
+    updates.push('tip_agregata = ?');
+    values.push(data.tip_agregata ?? null);
+  }
+  if (data.marka_agregata !== undefined) {
+    updates.push('marka_agregata = ?');
+    values.push((data.marka_agregata || '').trim() || null);
+  }
+  if (data.model_agregata !== undefined) {
+    updates.push('model_agregata = ?');
+    values.push((data.model_agregata || '').trim() || null);
+  }
+  if (data.serijski_broj !== undefined) {
+    updates.push('serijski_broj = ?');
+    values.push((data.serijski_broj || '').trim() || null);
   }
   if (data.status !== undefined) {
     updates.push('status = ?');
@@ -630,6 +724,7 @@ export function exportWorkOrdersCSV(req: Request): Response {
   // CSV headers
   const headers = [
     'broj_naloga',
+    'tip_naloga',
     'status',
     'created_at',
     'closed_at',
@@ -639,6 +734,10 @@ export function exportWorkOrdersCSV(req: Request): Response {
     'model_vozila',
     'motor',
     'kilometraza',
+    'tip_agregata',
+    'marka_agregata',
+    'model_agregata',
+    'serijski_broj',
     'opis_kvara',
     'napomena',
     'ukupna_cijena',
@@ -682,6 +781,7 @@ export function exportWorkOrdersCSV(req: Request): Response {
 
     const row = [
       escapeCSV(wo.broj_naloga),
+      escapeCSV(wo.tip_naloga),
       escapeCSV(wo.status),
       escapeCSV(wo.created_at),
       escapeCSV(wo.closed_at),
@@ -691,6 +791,10 @@ export function exportWorkOrdersCSV(req: Request): Response {
       escapeCSV(wo.model_vozila),
       escapeCSV(wo.motor),
       escapeCSV(wo.kilometraza),
+      escapeCSV(wo.tip_agregata),
+      escapeCSV(wo.marka_agregata),
+      escapeCSV(wo.model_agregata),
+      escapeCSV(wo.serijski_broj),
       escapeCSV(wo.opis_kvara),
       escapeCSV(wo.napomena),
       escapeCSV(wo.ukupna_cijena),
@@ -812,19 +916,24 @@ export async function importWorkOrdersCSV(req: Request): Promise<Response> {
         }
 
         // Create work order
-        const workOrderResult = db.query<{ id: number }, [string, number, string, string | null, string, string, string | null, number | null, number | null, string | null, string | null, string, string, string | null]>(
+        const workOrderResult = db.query<{ id: number }, [string, number, string, string, string | null, string, string, string | null, number | null, string | null, string | null, string | null, string | null, number | null, string | null, string | null, string, string, string | null]>(
           `INSERT INTO work_orders
-           (broj_naloga, customer_id, registarske_tablice, vin_broj, marka_vozila, model_vozila, motor, kilometraza, mechanic_id, opis_kvara, napomena, status, created_at, closed_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`
+           (broj_naloga, customer_id, tip_naloga, registarske_tablice, vin_broj, marka_vozila, model_vozila, motor, kilometraza, tip_agregata, marka_agregata, model_agregata, serijski_broj, mechanic_id, opis_kvara, napomena, status, created_at, closed_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`
         ).get(
           data.broj_naloga || '',
           customerId,
+          data.tip_naloga === 'agregat' ? 'agregat' : 'auto',
           data.registarske_tablice || '',
           data.vin_broj || null,
           data.marka_vozila || '',
           data.model_vozila || '',
           data.motor || null,
           data.kilometraza ? parseInt(data.kilometraza) : null,
+          data.tip_agregata || null,
+          data.marka_agregata || null,
+          data.model_agregata || null,
+          data.serijski_broj || null,
           mechanicId,
           data.opis_kvara || null,
           data.napomena || null,

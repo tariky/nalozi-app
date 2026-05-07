@@ -16,7 +16,7 @@ import { VehicleSelect } from "@/components/vehicles/VehicleSelect";
 import { workOrdersApi, mechanicsApi, vehiclesApi } from "@/lib/api";
 import { invalidateWorkOrdersCache } from "./WorkOrderList";
 import { useAuth } from "@/contexts/AuthContext";
-import type { WorkOrder, WorkOrderForm as WorkOrderFormData, Mechanic, Customer, Vehicle } from "@/types";
+import type { WorkOrder, WorkOrderFormAuto, Mechanic, Customer, Vehicle } from "@/types";
 
 interface WorkOrderFormProps {
   workOrderId?: number;
@@ -38,7 +38,8 @@ export function WorkOrderForm({ workOrderId, onBack, onSaved }: WorkOrderFormPro
   // Pre-fill mechanic_id for mechanic users when creating new work order
   const initialMechanicId = !workOrderId && isMechanic && user?.mechanic_id ? user.mechanic_id : undefined;
 
-  const [formData, setFormData] = useState<WorkOrderFormData>({
+  const [formData, setFormData] = useState<WorkOrderFormAuto>({
+    tip_naloga: 'auto',
     customer_id: 0,
     registarske_tablice: "",
     vin_broj: "",
@@ -159,6 +160,7 @@ export function WorkOrderForm({ workOrderId, onBack, onSaved }: WorkOrderFormPro
           const wo = result.data;
           setSelectedCustomerId(wo.customer_id);
           setFormData({
+            tip_naloga: 'auto',
             customer_id: wo.customer_id,
             registarske_tablice: wo.registarske_tablice,
             vin_broj: wo.vin_broj || "",

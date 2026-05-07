@@ -1,6 +1,13 @@
 import { Database } from "bun:sqlite";
-import { mkdirSync } from "fs";
+import { mkdirSync, copyFileSync, existsSync } from "fs";
 import { createTablesSQL } from "./schema";
+
+class BackupError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'BackupError';
+  }
+}
 
 let db: Database | null = null;
 let adminSeeded = false;
@@ -62,26 +69,47 @@ function runMigrations(db: Database): void {
     const columns = db.query<{ name: string }, []>(
       "PRAGMA table_info(work_orders)"
     ).all();
+    const columnNames = new Set(columns.map(c => c.name));
 
-    // Add closed_at column if it doesn't exist
-    const hasClosedAt = columns.some(col => col.name === 'closed_at');
-    if (!hasClosedAt) {
+    // Pre-existing migrations (idempotent)
+    if (!columnNames.has('closed_at')) {
       db.exec("ALTER TABLE work_orders ADD COLUMN closed_at TEXT");
     }
-
-    // Add opis_kvara column if it doesn't exist
-    const hasOpisKvara = columns.some(col => col.name === 'opis_kvara');
-    if (!hasOpisKvara) {
+    if (!columnNames.has('opis_kvara')) {
       db.exec("ALTER TABLE work_orders ADD COLUMN opis_kvara TEXT");
     }
-
-    // Add kilometraza column if it doesn't exist
-    const hasKilometraza = columns.some(col => col.name === 'kilometraza');
-    if (!hasKilometraza) {
+    if (!columnNames.has('kilometraza')) {
       db.exec("ALTER TABLE work_orders ADD COLUMN kilometraza INTEGER");
     }
 
-    // Add popust column to work_order_items if it doesn't exist
+    // Detect agregat-feature migration: any of these columns missing?
+    const needsAgregatMigration =
+      !columnNames.has('tip_naloga') ||
+      !columnNames.has('tip_agregata') ||
+      !columnNames.has('marka_agregata') ||
+      !columnNames.has('model_agregata') ||
+      !columnNames.has('serijski_broj');
+
+    if (needsAgregatMigration) {
+      backupDatabaseFile(process.env.DB_PATH ?? "data/asnord.db");
+      if (!columnNames.has('tip_naloga')) {
+        db.exec("ALTER TABLE work_orders ADD COLUMN tip_naloga TEXT NOT NULL DEFAULT 'auto'");
+      }
+      if (!columnNames.has('tip_agregata')) {
+        db.exec("ALTER TABLE work_orders ADD COLUMN tip_agregata TEXT");
+      }
+      if (!columnNames.has('marka_agregata')) {
+        db.exec("ALTER TABLE work_orders ADD COLUMN marka_agregata TEXT");
+      }
+      if (!columnNames.has('model_agregata')) {
+        db.exec("ALTER TABLE work_orders ADD COLUMN model_agregata TEXT");
+      }
+      if (!columnNames.has('serijski_broj')) {
+        db.exec("ALTER TABLE work_orders ADD COLUMN serijski_broj TEXT");
+      }
+    }
+
+    // Existing work_order_items.popust migration
     const itemColumns = db.query<{ name: string }, []>(
       "PRAGMA table_info(work_order_items)"
     ).all();
@@ -90,7 +118,7 @@ function runMigrations(db: Database): void {
       db.exec("ALTER TABLE work_order_items ADD COLUMN popust REAL DEFAULT 0");
     }
 
-    // Add csrf_token column to sessions if it doesn't exist
+    // Existing sessions.csrf_token migration
     const sessionColumns = db.query<{ name: string }, []>(
       "PRAGMA table_info(sessions)"
     ).all();
@@ -98,7 +126,30 @@ function runMigrations(db: Database): void {
     if (!hasCsrfToken) {
       db.exec("ALTER TABLE sessions ADD COLUMN csrf_token TEXT");
     }
-  } catch {}
+  } catch (err) {
+    if (err instanceof BackupError) {
+      throw err;
+    }
+    // Other migration errors (e.g. duplicate column on re-run) are silently ignored
+    // by design — pre-existing pattern.
+  }
+}
+
+function backupDatabaseFile(dbPath: string): void {
+  // No backup for in-memory DBs (tests)
+  if (dbPath === ":memory:") return;
+  // Skip if the source file doesn't exist (fresh install — nothing to back up)
+  if (!existsSync(dbPath)) return;
+
+  const ts = new Date().toISOString().replace(/[:.]/g, '-');
+  const backupPath = `${dbPath}.bak-${ts}`;
+  try {
+    copyFileSync(dbPath, backupPath);
+    console.log(`✅ Database backup created at ${backupPath}`);
+  } catch (err) {
+    console.error(`❌ Failed to create database backup at ${backupPath}:`, err);
+    throw new BackupError(`Database backup failed; aborting migration: ${(err as Error).message}`);
+  }
 }
 
 export function closeDB(): void {
