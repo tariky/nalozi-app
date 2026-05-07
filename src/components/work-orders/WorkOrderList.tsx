@@ -1,13 +1,7 @@
-import { useState, useEffect, useRef } from "react";
-import { Plus, Eye, Pencil, FileDown, ChevronLeft, ChevronRight, Clock, Upload, Download } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Plus, Eye, Pencil, FileDown, ChevronLeft, ChevronRight, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
 import {
   Select,
   SelectContent,
@@ -78,8 +72,6 @@ export function WorkOrderList({ onNewAuto, onNewAgregat, onView, onEdit, onPrint
 
   const [data, setData] = useState<PaginatedResponse<WorkOrder> | null>(getCachedData);
   const [loading, setLoading] = useState(!getCachedData());
-  const [importLoading, setImportLoading] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const loadWorkOrders = async (showLoading = true) => {
     if (showLoading && !data) setLoading(true);
@@ -124,105 +116,22 @@ export function WorkOrderList({ onNewAuto, onNewAgregat, onView, onEdit, onPrint
     onView(workOrder.id);
   };
 
-  const handleExport = async () => {
-    const result = await workOrdersApi.exportCSV();
-    if (!result.success) {
-      alert(result.error);
-    }
-  };
-
-  const handleImportClick = () => {
-    fileInputRef.current?.click();
-  };
-
-  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    setImportLoading(true);
-    const result = await workOrdersApi.importCSV(file);
-    setImportLoading(false);
-
-    if (result.success) {
-      alert(result.data?.message || 'Import uspješan');
-      workOrdersCache = null; // Invalidate cache
-      loadWorkOrders(true);
-    } else {
-      alert(result.error || 'Greška pri importu');
-    }
-
-    // Reset file input
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
-    }
-  };
-
   return (
     <div className="space-y-4 sm:space-y-6">
       <PageHeader
         title="Radni nalozi"
         description="Upravljajte radnim nalozima auto servisa"
         action={
-          <TooltipProvider>
-            <div className="flex items-center gap-2">
-              {isAdmin && (
-                <div className="hidden sm:flex items-center gap-2">
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        variant="outline"
-                        size="icon"
-                        onClick={handleExport}
-                      >
-                        <Download className="h-4 w-4" />
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p>Eksportuj CSV</p>
-                    </TooltipContent>
-                  </Tooltip>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        variant="outline"
-                        size="icon"
-                        onClick={handleImportClick}
-                        disabled={importLoading}
-                      >
-                        <Upload className="h-4 w-4" />
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p>Importuj CSV</p>
-                    </TooltipContent>
-                  </Tooltip>
-                  <input
-                    type="file"
-                    ref={fileInputRef}
-                    onChange={handleFileSelect}
-                    accept=".csv"
-                    className="hidden"
-                  />
-                </div>
-              )}
-              <div className="flex flex-wrap items-center gap-2">
-                <Button onClick={onNewAuto} size="sm">
-                  <Plus className="h-4 w-4 mr-1" />
-                  Novi auto nalog
-                </Button>
-                <Button onClick={onNewAgregat} size="sm" variant="outline">
-                  <Plus className="h-4 w-4 mr-1" />
-                  Novi agregat nalog
-                </Button>
-                {/* Tip filter (segmented) */}
-                <div className="ml-auto flex gap-1">
-                  <Button size="sm" variant={tipFilter === 'all' ? 'default' : 'outline'} onClick={() => setTipFilter('all')}>Sve</Button>
-                  <Button size="sm" variant={tipFilter === 'auto' ? 'default' : 'outline'} onClick={() => setTipFilter('auto')}>Auto</Button>
-                  <Button size="sm" variant={tipFilter === 'agregat' ? 'default' : 'outline'} onClick={() => setTipFilter('agregat')}>Agregat</Button>
-                </div>
-              </div>
-            </div>
-          </TooltipProvider>
+          <div className="grid grid-cols-2 gap-2 w-full sm:flex sm:w-auto">
+            <Button onClick={onNewAuto} size="sm" className="w-full sm:w-auto">
+              <Plus className="h-4 w-4 mr-1" />
+              <span className="truncate">Auto nalog</span>
+            </Button>
+            <Button onClick={onNewAgregat} size="sm" variant="outline" className="w-full sm:w-auto">
+              <Plus className="h-4 w-4 mr-1" />
+              <span className="truncate">Agregat nalog</span>
+            </Button>
+          </div>
         }
       />
 
@@ -230,21 +139,33 @@ export function WorkOrderList({ onNewAuto, onNewAgregat, onView, onEdit, onPrint
       {isAdmin && <SalesOverview />}
 
       {/* Search & Filters */}
-      <div className="flex flex-col sm:flex-row gap-3">
+      <div className="flex flex-col gap-3 sm:flex-row">
         <div className="flex-1">
           <WorkOrderSearch onSelect={handleSearchSelect} />
         </div>
-        <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-full sm:w-40">
-            <SelectValue placeholder="Status" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Svi statusi</SelectItem>
-            <SelectItem value="otvoren">Otvoreni</SelectItem>
-            <SelectItem value="u_toku">U toku</SelectItem>
-            <SelectItem value="zavrsen">Završeni</SelectItem>
-          </SelectContent>
-        </Select>
+        <div className="flex gap-2">
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <SelectTrigger className="flex-1 sm:w-40 sm:flex-initial">
+              <SelectValue placeholder="Status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Svi statusi</SelectItem>
+              <SelectItem value="otvoren">Otvoreni</SelectItem>
+              <SelectItem value="u_toku">U toku</SelectItem>
+              <SelectItem value="zavrsen">Završeni</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select value={tipFilter} onValueChange={(v) => setTipFilter(v as 'all' | 'auto' | 'agregat')}>
+            <SelectTrigger className="flex-1 sm:w-32 sm:flex-initial">
+              <SelectValue placeholder="Tip" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Svi tipovi</SelectItem>
+              <SelectItem value="auto">Auto</SelectItem>
+              <SelectItem value="agregat">Agregat</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
       {/* Content */}
