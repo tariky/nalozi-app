@@ -1,3 +1,5 @@
+import type { TipNaloga, TipAgregata } from '../types';
+
 // Formatters for currency and dates
 
 // Format number as KM currency (Bosnian format: 1.234,56 KM)
@@ -92,4 +94,26 @@ export function formatDuration(startDate: string, endDate: string | null): strin
   }
 
   return `${minutes}m`;
+}
+
+const TIP_NALOGA_LABEL: Record<TipNaloga, string> = {
+  auto: 'Auto',
+  agregat: 'Agregat',
+};
+
+const TIP_AGREGATA_LABEL: Record<TipAgregata, string> = {
+  alnaser: 'Alnaser',
+  alternator: 'Alternator',
+  klima_kompresor: 'Klima kompresor',
+  elektricni_uredjaj: 'Električni uređaj',
+  ostalo: 'Ostalo',
+};
+
+export function getTipNalogaLabel(tip: TipNaloga): string {
+  return TIP_NALOGA_LABEL[tip] ?? tip;
+}
+
+export function getTipAgregataLabel(tip: TipAgregata | string | null | undefined): string {
+  if (!tip) return '';
+  return TIP_AGREGATA_LABEL[tip as TipAgregata] ?? tip;
 }
