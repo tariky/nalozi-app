@@ -184,6 +184,18 @@ function formatDate(dateString: string): string {
   return `${day}.${month}.${year}`;
 }
 
+// Get human-readable label for agregat type
+function getTipAgregataLabel(tip: string | null | undefined): string {
+  switch (tip) {
+    case "alnaser": return "Alnaser";
+    case "alternator": return "Alternator";
+    case "klima_kompresor": return "Klima kompresor";
+    case "elektricni_uredjaj": return "Električni uređaj";
+    case "ostalo": return "Ostalo";
+    default: return tip || "-";
+  }
+}
+
 interface WorkOrderPDFDocumentProps {
   workOrder: WorkOrder;
 }
@@ -237,39 +249,61 @@ function WorkOrderPDFDocument({ workOrder }: WorkOrderPDFDocumentProps) {
             </View>
           </View>
 
-          {/* Vehicle */}
+          {/* Vehicle / Agregat */}
           <View style={styles.column}>
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>PODACI O VOZILU</Text>
-              <View style={styles.row}>
-                <Text style={styles.label}>Marka/Model:</Text>
-                <Text style={styles.value}>
-                  {workOrder.marka_vozila} {workOrder.model_vozila}
-                </Text>
+            {workOrder.tip_naloga === 'agregat' ? (
+              <View style={styles.section}>
+                <Text style={styles.sectionTitle}>PODACI O AGREGATU</Text>
+                <View style={styles.row}>
+                  <Text style={styles.label}>Tip:</Text>
+                  <Text style={styles.value}>{getTipAgregataLabel(workOrder.tip_agregata)}</Text>
+                </View>
+                <View style={styles.row}>
+                  <Text style={styles.label}>Marka:</Text>
+                  <Text style={styles.value}>{workOrder.marka_agregata || '-'}</Text>
+                </View>
+                <View style={styles.row}>
+                  <Text style={styles.label}>Model:</Text>
+                  <Text style={styles.value}>{workOrder.model_agregata || '-'}</Text>
+                </View>
+                <View style={styles.row}>
+                  <Text style={styles.label}>Serijski broj:</Text>
+                  <Text style={styles.value}>{workOrder.serijski_broj || '-'}</Text>
+                </View>
               </View>
-              <View style={styles.row}>
-                <Text style={styles.label}>Reg. tablice:</Text>
-                <Text style={styles.value}>{workOrder.registarske_tablice}</Text>
+            ) : (
+              <View style={styles.section}>
+                <Text style={styles.sectionTitle}>PODACI O VOZILU</Text>
+                <View style={styles.row}>
+                  <Text style={styles.label}>Marka/Model:</Text>
+                  <Text style={styles.value}>
+                    {workOrder.marka_vozila} {workOrder.model_vozila}
+                  </Text>
+                </View>
+                <View style={styles.row}>
+                  <Text style={styles.label}>Reg. tablice:</Text>
+                  <Text style={styles.value}>{workOrder.registarske_tablice}</Text>
+                </View>
+                {workOrder.vin_broj && (
+                  <View style={styles.row}>
+                    <Text style={styles.label}>VIN:</Text>
+                    <Text style={styles.value}>{workOrder.vin_broj}</Text>
+                  </View>
+                )}
+                {workOrder.motor && (
+                  <View style={styles.row}>
+                    <Text style={styles.label}>Motor:</Text>
+                    <Text style={styles.value}>{workOrder.motor}</Text>
+                  </View>
+                )}
+                {workOrder.kilometraza && (
+                  <View style={styles.row}>
+                    <Text style={styles.label}>Kilometraža:</Text>
+                    <Text style={styles.value}>{formatNumber(workOrder.kilometraza)} km</Text>
+                  </View>
+                )}
               </View>
-              {workOrder.vin_broj && (
-                <View style={styles.row}>
-                  <Text style={styles.label}>VIN:</Text>
-                  <Text style={styles.value}>{workOrder.vin_broj}</Text>
-                </View>
-              )}
-              {workOrder.motor && (
-                <View style={styles.row}>
-                  <Text style={styles.label}>Motor:</Text>
-                  <Text style={styles.value}>{workOrder.motor}</Text>
-                </View>
-              )}
-              {workOrder.kilometraza && (
-                <View style={styles.row}>
-                  <Text style={styles.label}>Kilometraža:</Text>
-                  <Text style={styles.value}>{formatNumber(workOrder.kilometraza)} km</Text>
-                </View>
-              )}
-            </View>
+            )}
           </View>
         </View>
 
