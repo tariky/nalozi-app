@@ -1,0 +1,34 @@
+services:
+  asnord:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - DB_PATH=/app/data/asnord.db
+      # OpenRouter key for invoice OCR. Set this in the Coolify UI (Environment
+      # Variables) or in a .env file next to this compose file.
+      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
+      # Coolify magic variable: generates a domain and routes it to port 3000.
+      # Coolify reads this token and wires up its Traefik/Caddy proxy for you.
+      - SERVICE_FQDN_ASNORD_3000
+    expose:
+      - "3000"
+    volumes:
+      # Named volume so the SQLite database survives redeploys.
+      - asnord-data:/app/data
+    healthcheck:
+      test:
+        - CMD
+        - bun
+        - -e
+        - "fetch('http://localhost:3000/').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+
+volumes:
+  asnord-data:
