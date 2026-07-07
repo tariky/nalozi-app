@@ -13,10 +13,11 @@ Aplikacija je jednokorisnička (jedan servis), pa se čuva jedan zapis postavki.
 ## Zahtjevi
 
 - Uređivanje postavki: **samo admin**.
-- Čitanje postavki: svi prijavljeni korisnici (za nav) + login stranica (prije prijave).
+- Čitanje postavki: **samo prijavljeni korisnici** (nema javnog pristupa).
 - Polja firme: `naziv`, `telefon`, `email`, `adresa`, `id_broj` (PDV/JIB), `web`, `logo`.
 - Logo se učitava iz fajla (PNG/JPG/SVG), prikazuje se preview prije spremanja.
-- Prikaz podataka na: PDF radnog naloga, TopNav, Login stranica.
+- Prikaz podataka na: PDF radnog naloga, TopNav. Login stranica ostaje na
+  statičkom `logo.svg` (podaci firme su zaštićeni, ne čitaju se prije prijave).
 
 ## Odluke o dizajnu
 
@@ -57,17 +58,13 @@ praznim vrijednostima), da GET uvijek vraća objekt.
 
 ### 2. API — `src/api/settings.ts`
 
-- `GET /api/settings/company` — vraća jedini zapis. Dostupno svim prijavljenim
-  korisnicima (nav to čita). Login stranica čita isti endpoint bez auth-a za
-  osnovne podatke (naziv + logo) — vidi napomenu o javnom čitanju ispod.
+- `GET /api/settings/company` — vraća jedini zapis. **Zahtijeva autentikaciju**
+  (svi prijavljeni korisnici, kao ostali zaštićeni GET-ovi).
 - `PUT /api/settings/company` — sprema postavke. **Samo admin**, uz CSRF
   provjeru kao ostali mutacijski pozivi. Validira veličinu logo stringa (max 200KB).
 
-Napomena o login stranici: login je prije autentikacije, pa mu treba javno
-čitanje naziva+logo-a. Rješenje: `GET /api/settings/company` je dostupan bez
-auth-a, ali vraća samo javna polja (`naziv`, `logo`) kada nema sesije; puni
-objekt (sva polja) kada je korisnik prijavljen. Ovim izbjegavamo curenje
-telefona/emaila/PDV-a na javni endpoint iako su ionako namijenjeni prikazu.
+Login stranica je prije autentikacije i ne dohvata postavke — ostaje na
+statičkom `logo.svg` fallback-u. Svi podaci firme su tako zaštićeni iza auth-a.
 
 ### 3. Frontend — stranica Postavke
 
@@ -90,8 +87,7 @@ telefona/emaila/PDV-a na javni endpoint iako su ionako namijenjeni prikazu.
 
 - Dohvati postavke jednom nakon prijave, dijeli ih kroz aplikaciju (nav, PDF).
 - `refresh()` nakon spremanja u Postavkama.
-- Login stranica ne koristi context (prije prijave je) — dohvata javna polja
-  direktnim fetch-om pri montiranju.
+- Login stranica ne koristi context niti dohvata postavke (prije prijave je).
 
 ### 5. Korištenje podataka
 
@@ -101,7 +97,7 @@ telefona/emaila/PDV-a na javni endpoint iako su ionako namijenjeni prikazu.
   naloga) prosljeđuje postavke iz context-a.
 - **TopNav**: logo iz postavki s fallback-om na postojeći `logo.svg`; naziv firme
   pored logo-a ako je postavljen.
-- **Login**: logo + naziv firme s fallback-om ako su prazni.
+- **Login**: bez izmjena — ostaje statički `logo.svg` (podaci zaštićeni iza auth-a).
 
 ## Rukovanje greškama
 
@@ -116,8 +112,8 @@ telefona/emaila/PDV-a na javni endpoint iako su ionako namijenjeni prikazu.
 
 - API test (`src/api/settings.test.ts`): GET vraća default red; PUT kao admin
   sprema i vraća ažurirane vrijednosti; PUT kao ne-admin → 403; PUT s prevelikim
-  logo-om → 400; GET bez sesije vraća samo javna polja.
-- Ručna provjera: upload logo-a → prikaz u nav, login, i PDF-u.
+  logo-om → 400; GET bez sesije → 401.
+- Ručna provjera: upload logo-a → prikaz u nav i PDF-u.
 
 ## Van opsega (YAGNI)
 
