@@ -11,6 +11,7 @@ import { Dashboard } from "@/components/analytics/Dashboard";
 import { UserList } from "@/components/users/UserList";
 import { CompanySettings } from "@/components/settings/CompanySettings";
 import { LoginPage } from "@/components/auth/LoginPage";
+import { PublicServiceHistory } from "@/components/public/PublicServiceHistory";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { CompanySettingsProvider, useCompanySettings } from "@/contexts/CompanySettingsContext";
 import { generateWorkOrderPDF } from "@/components/pdf/WorkOrderPDF";
@@ -259,6 +260,12 @@ function AppContent() {
 }
 
 export function App() {
+  // Public QR page: real path /s/:token, bypasses auth + hash routing entirely
+  if (typeof window !== "undefined" && window.location.pathname.startsWith("/s/")) {
+    const token = window.location.pathname.slice(3).replace(/\/$/, "");
+    return <PublicServiceHistory token={token} />;
+  }
+
   return (
     <AuthProvider>
       <CompanySettingsProvider>
