@@ -256,3 +256,24 @@ export interface ScanInvoiceResponse {
 export interface BulkItemsRequest {
   items: WorkOrderItemForm[];
 }
+
+// Public service history (QR) types
+export interface PublicServiceVisitItem {
+  tip: 'dio' | 'usluga';
+  naziv: string;
+  kolicina: number;
+}
+
+export interface PublicServiceVisit {
+  datum: string;
+  kilometraza: number | null;
+  opis_kvara: string | null;
+  mehanicar: string | null;
+  items: PublicServiceVisitItem[];
+}
+
+export interface PublicServiceHistoryData {
+  company: { naziv: string | null; logo: string | null };
+  vehicle: { marka_vozila: string; model_vozila: string; registarske_tablice: string };
+  visits: PublicServiceVisit[];
+}
