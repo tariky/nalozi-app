@@ -1,6 +1,21 @@
 import { test, expect, beforeEach } from "bun:test";
 import { getDB, closeDB } from "../db";
-import { createVehiclePublicToken } from "./vehicle-tokens";
+import { createVehiclePublicToken, getPublicServiceHistory } from "./vehicle-tokens";
+
+function publicReq(token: string): Request {
+  // No cookies, no CSRF — public endpoint
+  return new Request(`http://localhost/api/public/service-history/${token}`, { method: "GET" });
+}
+
+// Helper: insert a work order for the seeded vehicle's VIN
+function insertOrder(opts: { broj: string; vin: string | null; plates: string; km: number | null; opis: string }): number {
+  const db = getDB();
+  const wo = db.query<{ id: number }, [string, string, string | null, number | null, string]>(
+    `INSERT INTO work_orders (broj_naloga, customer_id, registarske_tablice, vin_broj, marka_vozila, model_vozila, kilometraza, opis_kvara)
+     VALUES (?, (SELECT id FROM customers LIMIT 1), ?, ?, 'VW', 'Golf', ?, ?) RETURNING id`
+  ).get(opts.broj, opts.plates, opts.vin, opts.km, opts.opis)!;
+  return wo.id;
+}
 
 process.env.DB_PATH = ":memory:";
 
@@ -73,4 +88,55 @@ test("createVehiclePublicToken: is idempotent — same token on repeat", async (
   const res2 = createVehiclePublicToken(req("POST", `/api/vehicles/${vehicleId}/public-token`));
   const body2 = await res2.json() as { token: string };
   expect(body2.token).toBe(body1.token);
+});
+
+test("getPublicServiceHistory: 404 for unknown token", () => {
+  const res = getPublicServiceHistory(publicReq("nope"));
+  expect(res.status).toBe(404);
+});
+
+test("getPublicServiceHistory: groups orders by VIN and omits prices/personal data", async () => {
+  const db = getDB();
+  // Two orders, same VIN, different plates -> both must appear
+  const wo1 = insertOrder({ broj: "2026-0001", vin: "VIN123456789", plates: "A12-B-345", km: 100000, opis: "Servis kočnica" });
+  insertOrder({ broj: "2026-0002", vin: "VIN123456789", plates: "NEW-PLATE", km: 110000, opis: "Zamjena ulja" });
+  db.query<null, [number, string, string, number, number, number]>(
+    `INSERT INTO work_order_items (work_order_id, tip, naziv, kolicina, jedinicna_cijena, ukupna_cijena) VALUES (?, ?, ?, ?, ?, ?)`
+  ).run(wo1, "dio", "Pločice", 1, 50, 50);
+
+  // Create the token
+  const tokRes = createVehiclePublicToken(req("POST", `/api/vehicles/${vehicleId}/public-token`));
+  const { token } = await tokRes.json() as { token: string };
+
+  const res = getPublicServiceHistory(publicReq(token));
+  expect(res.status).toBe(200);
+  const raw = await res.text();
+
+  // Sanitization: no price or personal-data field names in payload
+  for (const forbidden of ["jedinicna_cijena", "ukupna_cijena", "popust", "napomena", "telefon", "email", "broj_naloga", "vin_broj"]) {
+    expect(raw).not.toContain(forbidden);
+  }
+
+  const body = JSON.parse(raw) as import("../types").PublicServiceHistoryData;
+  expect(body.visits.length).toBe(2);
+  expect(body.vehicle.marka_vozila).toBe("VW");
+  expect(body.visits[0]!.items.length).toBeGreaterThanOrEqual(0);
+});
+
+test("getPublicServiceHistory: falls back to plates when vehicle has no VIN", async () => {
+  const db = getDB();
+  // Add a vehicle without VIN + its order matched by plates
+  const veh = db.query<{ id: number }, [string, string, string]>(
+    "INSERT INTO vehicles (customer_id, registarske_tablice, marka_vozila, model_vozila) VALUES ((SELECT id FROM customers LIMIT 1), ?, ?, ?) RETURNING id"
+  ).get("ZZ-99-ZZ", "Fiat", "Punto")!;
+  db.query<null, [string, string]>(
+    `INSERT INTO work_orders (broj_naloga, customer_id, registarske_tablice, marka_vozila, model_vozila)
+     VALUES (?, (SELECT id FROM customers LIMIT 1), ?, 'Fiat', 'Punto')`
+  ).run("2026-0003", "ZZ-99-ZZ");
+
+  const tokRes = createVehiclePublicToken(req("POST", `/api/vehicles/${veh.id}/public-token`));
+  const { token } = await tokRes.json() as { token: string };
+  const res = getPublicServiceHistory(publicReq(token));
+  const body = await res.json() as import("../types").PublicServiceHistoryData;
+  expect(body.visits.length).toBe(1);
 });

@@ -82,6 +82,11 @@ import {
   updateCompanySettings,
 } from "./api/settings";
 
+import {
+  createVehiclePublicToken,
+  getPublicServiceHistory,
+} from "./api/vehicle-tokens";
+
 const server = serve({
   routes: {
     // Mechanics API
@@ -119,6 +124,9 @@ const server = serve({
       GET: getVehicleById,
       PUT: updateVehicle,
       DELETE: deleteVehicle,
+    },
+    "/api/vehicles/:id/public-token": {
+      POST: createVehiclePublicToken,
     },
 
     // Work Orders API
@@ -209,6 +217,11 @@ const server = serve({
     "/api/settings/company": {
       GET: getCompanySettings,
       PUT: updateCompanySettings,
+    },
+
+    // Public service history (no auth)
+    "/api/public/service-history/:token": {
+      GET: getPublicServiceHistory,
     },
 
     // PWA Static Files
