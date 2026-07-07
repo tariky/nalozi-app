@@ -107,6 +107,22 @@ CREATE TABLE IF NOT EXISTS sessions (
   FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
+-- Company settings (single-row table, id is always 1)
+CREATE TABLE IF NOT EXISTS company_settings (
+  id INTEGER PRIMARY KEY CHECK (id = 1),
+  naziv TEXT,
+  telefon TEXT,
+  email TEXT,
+  adresa TEXT,
+  id_broj TEXT,
+  web TEXT,
+  logo TEXT,
+  updated_at TEXT DEFAULT (datetime('now'))
+);
+
+-- Ensure the single settings row always exists so GET returns an object
+INSERT OR IGNORE INTO company_settings (id) VALUES (1);
+
 -- Indexes for search optimization
 CREATE INDEX IF NOT EXISTS idx_time_entries_work_order ON time_entries(work_order_id);
 CREATE INDEX IF NOT EXISTS idx_work_orders_vin ON work_orders(vin_broj);

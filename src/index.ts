@@ -77,6 +77,11 @@ import {
   changePassword,
 } from "./api/auth";
 
+import {
+  getCompanySettings,
+  updateCompanySettings,
+} from "./api/settings";
+
 const server = serve({
   routes: {
     // Mechanics API
@@ -198,6 +203,12 @@ const server = serve({
     },
     "/api/users/:id/password": {
       PUT: changePassword,
+    },
+
+    // Company settings API
+    "/api/settings/company": {
+      GET: getCompanySettings,
+      PUT: updateCompanySettings,
     },
 
     // PWA Static Files

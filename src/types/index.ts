@@ -183,6 +183,29 @@ export interface AuthUser {
   mechanic?: Mechanic;
 }
 
+// Company settings types
+export interface CompanySettings {
+  id: number;
+  naziv: string | null;
+  telefon: string | null;
+  email: string | null;
+  adresa: string | null;
+  id_broj: string | null;
+  web: string | null;
+  logo: string | null; // data-URI (base64) or null
+  updated_at: string;
+}
+
+export interface CompanySettingsForm {
+  naziv?: string;
+  telefon?: string;
+  email?: string;
+  adresa?: string;
+  id_broj?: string;
+  web?: string;
+  logo?: string | null;
+}
+
 // Analytics types
 export interface SalesData {
   datum: string;

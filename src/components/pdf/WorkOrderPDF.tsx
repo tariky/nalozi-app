@@ -3,11 +3,12 @@ import {
   Page,
   Text,
   View,
+  Image,
   StyleSheet,
   pdf,
   Font,
 } from "@react-pdf/renderer";
-import type { WorkOrder } from "@/types";
+import type { WorkOrder, CompanySettings } from "@/types";
 
 // Register Roboto font which supports Eastern European characters (čćžšđ)
 Font.register({
@@ -35,6 +36,30 @@ const styles = StyleSheet.create({
     marginBottom: 30,
     borderBottom: "2 solid #333",
     paddingBottom: 15,
+  },
+  headerTop: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+    marginBottom: 12,
+  },
+  companyBlock: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  companyLogo: {
+    width: 56,
+    height: 56,
+    objectFit: "contain",
+  },
+  companyName: {
+    fontSize: 14,
+    fontWeight: "bold",
+  },
+  companyDetail: {
+    fontSize: 9,
+    color: "#666",
   },
   title: {
     fontSize: 24,
@@ -184,6 +209,12 @@ function formatDate(dateString: string): string {
   return `${day}.${month}.${year}`;
 }
 
+// @react-pdf Image reliably renders raster data-URIs (PNG/JPG) but not SVG.
+// Guard against SVG/other logos so PDF generation never crashes.
+function canRenderLogo(logo: string | null | undefined): logo is string {
+  return !!logo && /^data:image\/(png|jpe?g);base64,/.test(logo);
+}
+
 // Get human-readable label for agregat type
 function getTipAgregataLabel(tip: string | null | undefined): string {
   switch (tip) {
@@ -198,9 +229,10 @@ function getTipAgregataLabel(tip: string | null | undefined): string {
 
 interface WorkOrderPDFDocumentProps {
   workOrder: WorkOrder;
+  company?: CompanySettings | null;
 }
 
-function WorkOrderPDFDocument({ workOrder }: WorkOrderPDFDocumentProps) {
+function WorkOrderPDFDocument({ workOrder, company }: WorkOrderPDFDocumentProps) {
   const partsTotal =
     workOrder.items
       ?.filter((i) => i.tip === "dio")
@@ -216,6 +248,23 @@ function WorkOrderPDFDocument({ workOrder }: WorkOrderPDFDocumentProps) {
       <Page size="A4" style={styles.page}>
         {/* Header */}
         <View style={styles.header}>
+          {company && (company.naziv || canRenderLogo(company.logo)) && (
+            <View style={styles.headerTop}>
+              <View style={styles.companyBlock}>
+                {canRenderLogo(company.logo) && (
+                  <Image style={styles.companyLogo} src={company.logo!} />
+                )}
+                <View>
+                  {company.naziv && <Text style={styles.companyName}>{company.naziv}</Text>}
+                  {company.adresa && <Text style={styles.companyDetail}>{company.adresa}</Text>}
+                  {company.telefon && <Text style={styles.companyDetail}>Tel: {company.telefon}</Text>}
+                  {company.email && <Text style={styles.companyDetail}>{company.email}</Text>}
+                  {company.web && <Text style={styles.companyDetail}>{company.web}</Text>}
+                  {company.id_broj && <Text style={styles.companyDetail}>ID/PDV: {company.id_broj}</Text>}
+                </View>
+              </View>
+            </View>
+          )}
           <Text style={styles.title}>RADNI NALOG</Text>
           <Text style={styles.subtitle}>
             Broj: {workOrder.broj_naloga} | Datum: {formatDate(workOrder.created_at)}
@@ -406,8 +455,11 @@ function WorkOrderPDFDocument({ workOrder }: WorkOrderPDFDocumentProps) {
 }
 
 // Function to generate and download PDF
-export async function generateWorkOrderPDF(workOrder: WorkOrder): Promise<void> {
-  const blob = await pdf(<WorkOrderPDFDocument workOrder={workOrder} />).toBlob();
+export async function generateWorkOrderPDF(
+  workOrder: WorkOrder,
+  company?: CompanySettings | null
+): Promise<void> {
+  const blob = await pdf(<WorkOrderPDFDocument workOrder={workOrder} company={company} />).toBlob();
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.href = url;

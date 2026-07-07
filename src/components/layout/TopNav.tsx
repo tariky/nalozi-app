@@ -5,12 +5,14 @@ import {
   Wrench,
   BarChart3,
   UserCog,
+  Settings,
   LogOut,
   Menu,
   X,
 } from "lucide-react";
 import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
+import { useCompanySettings } from "@/contexts/CompanySettingsContext";
 import logoSrc from "@/logo.svg";
 
 interface TopNavProps {
@@ -25,6 +27,7 @@ const allNavItems = [
   { id: "mechanics", label: "Mehaničari", icon: Wrench, roles: ["admin"] },
   { id: "analytics", label: "Analitika", icon: BarChart3, roles: ["admin"] },
   { id: "users", label: "Korisnici", icon: UserCog, roles: ["admin"] },
+  { id: "settings", label: "Postavke", icon: Settings, roles: ["admin"] },
 ];
 
 function getInitials(name: string): string {
@@ -33,9 +36,12 @@ function getInitials(name: string): string {
 
 export function TopNav({ currentPage, onNavigate, userRole = "admin" }: TopNavProps) {
   const { logout, user } = useAuth();
+  const { settings } = useCompanySettings();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const navItems = allNavItems.filter((item) => item.roles.includes(userRole));
+  const logoImg = settings?.logo || logoSrc;
+  const companyName = settings?.naziv || "AS-NORD";
 
   const handleNavigate = (page: string) => {
     onNavigate(page);
@@ -53,7 +59,12 @@ export function TopNav({ currentPage, onNavigate, userRole = "admin" }: TopNavPr
       <div className="hidden md:block">
         <div className="w-full max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
         {/* Logo */}
-        <img src={logoSrc} alt="AS-NORD" className="h-9 w-auto" />
+        <div className="flex items-center gap-2">
+          <img src={logoImg} alt={companyName} className="h-9 w-auto max-w-[160px] object-contain" />
+          {settings?.naziv && (
+            <span className="text-sm font-semibold text-foreground">{settings.naziv}</span>
+          )}
+        </div>
 
         {/* Navigation */}
         <nav className="flex items-center">
@@ -107,7 +118,7 @@ export function TopNav({ currentPage, onNavigate, userRole = "admin" }: TopNavPr
 
       {/* Mobile Header */}
       <div className="md:hidden flex items-center justify-between px-4 h-14">
-        <img src={logoSrc} alt="AS-NORD" className="h-8 w-auto" />
+        <img src={logoImg} alt={companyName} className="h-8 w-auto max-w-[140px] object-contain" />
 
         <button
           onClick={() => setMobileMenuOpen(!mobileMenuOpen)}

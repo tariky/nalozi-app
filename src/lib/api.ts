@@ -19,6 +19,8 @@ import type {
   AuthUser,
   UserForm,
   ScanInvoiceResponse,
+  CompanySettings,
+  CompanySettingsForm,
 } from '../types';
 
 const API_BASE = '/api';
@@ -341,5 +343,16 @@ export const usersApi = {
     fetchApi<void>(`/users/${id}/password`, {
       method: 'PUT',
       body: JSON.stringify({ password }),
+    }),
+};
+
+// Company settings API
+export const settingsApi = {
+  getCompany: () => fetchApi<CompanySettings>('/settings/company'),
+
+  updateCompany: (data: CompanySettingsForm) =>
+    fetchApi<CompanySettings>('/settings/company', {
+      method: 'PUT',
+      body: JSON.stringify(data),
     }),
 };
