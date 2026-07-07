@@ -140,6 +140,9 @@ export const vehiclesApi = {
 
   delete: (id: number) =>
     fetchApi<void>(`/vehicles/${id}`, { method: 'DELETE' }),
+
+  createPublicToken: (id: number) =>
+    fetchApi<{ token: string }>(`/vehicles/${id}/public-token`, { method: 'POST' }),
 };
 
 // Work Orders API
