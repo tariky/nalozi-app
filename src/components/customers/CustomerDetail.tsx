@@ -55,6 +55,8 @@ export function CustomerDetail({
       const url = `${window.location.origin}/s/${res.data.token}`;
       const qrDataUrl = await QRCode.toDataURL(url, { width: 400, margin: 1 });
       await generateVehicleQRPDF(vehicle, companySettings, qrDataUrl, url);
+    } catch {
+      alert("Greška pri generisanju QR kartice");
     } finally {
       setPrintingId(null);
     }
