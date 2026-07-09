@@ -136,9 +136,11 @@ Granica postoji zato što je poklapanje ono što zaista treba testovima, a mrež
 | `levenshtein(a, b)` | dva stringa → razdaljina |
 | `matchVehicles(doc, vehicles)` | → `{ candidates: VehicleCandidate[], warnings: string[] }` |
 | `matchCustomers({ ime, prezime }, customers)` | → `CustomerCandidate[]` |
-| `decideAutoSelect(doc, vehicleCandidates, customerCandidates)` | → `{ vehicleId, customerId, warnings: string[] }` |
+| `decideAutoSelect(doc, vehicleCandidates)` | → `{ vehicleId, customerId, warnings: string[] }` |
 
 `matchVehicles` prijavljuje sudar kad dva vozila dijele VIN. `decideAutoSelect` prijavljuje neusklađenog vlasnika. Handler spaja oba skupa upozorenja u `warnings` odgovora.
+
+`decideAutoSelect` namjerno **ne prima** listu kandidata za klijenta. Pravilo da poklapanje po imenu nikad samo ne odabire klijenta tako ne može biti prekršeno ni greškom — funkcija tu listu uopće ne vidi.
 
 **`src/api/registration-scan.ts`** — handler: auth, validacija slike, OpenRouter poziv, `parseRegistrationResponse` (striktna validacija odgovora, po uzoru na `parseModelResponse`), upit u bazu, poziv matchera.
 
