@@ -104,6 +104,16 @@ test("matchVehicles reports a warning when two vehicles share a VIN", () => {
   expect(warnings[0]).toContain("isti");
 });
 
+test("matchVehicles requires a minimum VIN length even for an exact match", () => {
+  // A 1-character document VIN that happens to canonicalize identically to a
+  // stored vehicle's canonicalized VIN must not auto-select via vin_exact.
+  const stored = vehicle(7, { vin_broj: "I" }); // canonicalizes to "1"
+  const { candidates } = matchVehicles(doc({ vin_broj: "I", registarske_tablice: "ZZZ-999" }), [
+    { ...stored, customer: null },
+  ]);
+  expect(candidates.some((c) => c.match === "vin_exact")).toBe(false);
+});
+
 test("matchVehicles falls back to plates when the VIN does not match", () => {
   const stored = vehicle(7, { vin_broj: "ZZZZZZ9ZZZZ999999" });
   const { candidates } = matchVehicles(doc(), [{ ...stored, customer: null }]);

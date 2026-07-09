@@ -150,8 +150,18 @@ export async function updateVehicle(req: Request): Promise<Response> {
     return Response.json({ message: 'Vozilo nije pronađeno' }, { status: 404 });
   }
 
-  db.query<null, [string, string | null, string, string, string | null, number]>(
-    `UPDATE vehicles SET registarske_tablice = ?, vin_broj = ?, marka_vozila = ?, model_vozila = ?, motor = ?
+  if (data.customer_id) {
+    const customer = db.query<{ id: number }, [number]>(
+      'SELECT id FROM customers WHERE id = ?'
+    ).get(data.customer_id);
+
+    if (!customer) {
+      return Response.json({ message: 'Klijent nije pronađen' }, { status: 404 });
+    }
+  }
+
+  db.query<null, [string, string | null, string, string, string | null, number, number]>(
+    `UPDATE vehicles SET registarske_tablice = ?, vin_broj = ?, marka_vozila = ?, model_vozila = ?, motor = ?, customer_id = ?
      WHERE id = ?`
   ).run(
     data.registarske_tablice || existing.registarske_tablice,
@@ -159,6 +169,7 @@ export async function updateVehicle(req: Request): Promise<Response> {
     data.marka_vozila || existing.marka_vozila,
     data.model_vozila || existing.model_vozila,
     data.motor !== undefined ? (data.motor || null) : existing.motor,
+    data.customer_id ?? existing.customer_id,
     id
   );
 

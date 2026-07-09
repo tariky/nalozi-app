@@ -13,7 +13,7 @@ import type {
 
 // Đ (U+0110) and đ (U+0111) are distinct letters, not decomposable by NFD.
 // Without this map, "Đurić" would never match "Duric".
-const DJ_RE = /[ĐđÐ]/g;
+const DJ_RE = /[ĐđÐð]/g;
 
 export function normalizeName(raw: string): string {
   return raw
@@ -48,7 +48,7 @@ export function levenshtein(a: string, b: string): number {
   if (b.length === 0) return a.length;
 
   let prev: number[] = Array.from({ length: b.length + 1 }, (_, i) => i);
-  const curr: number[] = new Array<number>(b.length + 1);
+  let curr: number[] = new Array<number>(b.length + 1);
 
   for (let i = 1; i <= a.length; i++) {
     curr[0] = i;
@@ -56,7 +56,9 @@ export function levenshtein(a: string, b: string): number {
       const cost = a[i - 1] === b[j - 1] ? 0 : 1;
       curr[j] = Math.min(curr[j - 1]! + 1, prev[j]! + 1, prev[j - 1]! + cost);
     }
-    prev = curr.slice();
+    const tmp = prev;
+    prev = curr;
+    curr = tmp;
   }
   return prev[b.length]!;
 }
@@ -107,7 +109,7 @@ export function matchVehicles(
     const vin = row.vin_broj ? canonicalVin(row.vin_broj) : "";
 
     if (docVin && vin) {
-      if (vin === docVin) {
+      if (docVin.length >= VIN_MIN_NEAR_LENGTH && vin === docVin) {
         exact.push(make("vin_exact"));
         continue;
       }
