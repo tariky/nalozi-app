@@ -19,7 +19,7 @@ const INSTRUCTIONS = [
   "6. Append a short note to 'warnings' for any row you skipped because data was unclear.",
 ].join("\n");
 
-interface OcrMessage {
+export interface OcrMessage {
   role: "system" | "user";
   content: string | Array<{ type: "text"; text: string } | { type: "image_url"; image_url: { url: string } }>;
 }
@@ -41,7 +41,7 @@ export function buildOcrMessages(dataUrl: string): OcrMessage[] {
 }
 
 // Strip markdown code fences (```json ... ``` or ``` ... ```) if the model wrapped output.
-function stripFences(raw: string): string {
+export function stripFences(raw: string): string {
   const trimmed = raw.trim();
   const fenceMatch = trimmed.match(/^```(?:json)?\s*([\s\S]*?)\s*```$/);
   return fenceMatch ? fenceMatch[1]!.trim() : trimmed;
