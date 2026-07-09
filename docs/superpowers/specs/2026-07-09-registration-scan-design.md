@@ -68,7 +68,7 @@ Poredi se i `ime prezime` i `prezime ime`, jer redoslijed na dokumentu nije zaja
 
 `autoSelect.vehicleId` se postavlja **samo** kad postoji tačno jedno egzaktno poklapanje VIN-a.
 
-`autoSelect.customerId` se postavlja **samo** kad je vozilo automatski odabrano **i** ime na saobraćajnoj odgovara vlasniku tog vozila (score ≥ 0.72). Ako se ne poklapa, oba se prikazuju uz upozorenje:
+`autoSelect.customerId` se postavlja **samo** kad je vozilo automatski odabrano **i** ime na saobraćajnoj odgovara vlasniku tog vozila (score ≥ 0.72) **ili nije čitljivo**. Ako se poklapa loše, oba se prikazuju uz upozorenje:
 
 > Vozilo je u bazi na *Pero Perić*, a saobraćajna glasi na *Marko Marić*. Vozilo je vjerovatno prodano.
 

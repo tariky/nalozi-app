@@ -162,3 +162,13 @@ test("decideAutoSelect drops the customer when the document owner disagrees", ()
   expect(auto.warnings.length).toBe(1);
   expect(auto.warnings[0]).toContain("prodano");
 });
+
+test("decideAutoSelect accepts the stored owner when the document owner name is unreadable", () => {
+  const { candidates } = matchVehicles(doc({ vlasnik: { ime: null, prezime: null } }), [
+    { ...vehicle(7), customer: owner(3, "Pero", "Perić") },
+  ]);
+  const auto = decideAutoSelect(doc({ vlasnik: { ime: null, prezime: null } }), candidates);
+  expect(auto.vehicleId).toBe(7);
+  expect(auto.customerId).toBe(3);
+  expect(auto.warnings).toEqual([]);
+});
