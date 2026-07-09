@@ -112,10 +112,10 @@ export function RegistrationScanDialog({ open, onOpenChange, onResolved }: Regis
 
     // 1. Customer: reuse the chosen row, or create one from the document.
     let customerId: number;
+    let customerCreated = false;
     if (customerChoice === "new") {
       if (!newIme.trim() || !newPrezime.trim()) {
-        setPhase({ kind: "review", data });
-        return;
+        return fail("Ime i prezime klijenta su obavezni");
       }
       const created = await customersApi.create({
         ime: newIme.trim(),
@@ -124,6 +124,7 @@ export function RegistrationScanDialog({ open, onOpenChange, onResolved }: Regis
       });
       if (!created.success || !created.data) return fail(created.error || "Greška pri kreiranju klijenta");
       customerId = created.data.id;
+      customerCreated = true;
     } else {
       customerId = customerChoice;
     }
@@ -139,7 +140,14 @@ export function RegistrationScanDialog({ open, onOpenChange, onResolved }: Regis
         vin_broj: fields.vin_broj.trim() || undefined,
         motor: fields.motor.trim() || undefined,
       });
-      if (!created.success || !created.data) return fail(created.error || "Greška pri kreiranju vozila");
+      if (!created.success || !created.data) {
+        const reason = created.error || "Greška pri kreiranju vozila";
+        return fail(
+          customerCreated
+            ? `Klijent je sačuvan, ali vozilo nije: ${reason}. Ponovnim skeniranjem klijent će biti ponuđen na listi.`
+            : reason
+        );
+      }
       vehicle = created.data;
     } else {
       const found = data.vehicleCandidates.find((c) => c.vehicle.id === vehicleChoice);
