@@ -20,6 +20,7 @@
 - All user-facing strings are in Bosnian.
 - `bunx tsc --noEmit` reports ~8 pre-existing errors in `build.ts`. These are not yours. Ignore them. Introduce no new ones.
 - Existing tests must keep passing: `bun test` is currently 49 pass, 0 fail.
+- The image-upload and OpenRouter plumbing is shared, not copied. Task 4 extracts `src/api/vision.ts` and moves `invoice-scan.ts` onto it.
 
 ## Deviations from the spec (intentional, already reasoned)
 
@@ -33,7 +34,8 @@
 | `src/types/index.ts` (modify) | Shared types for the scan payload |
 | `src/api/registration-match.ts` (create) | Pure matching: normalization, Levenshtein, candidates, auto-select |
 | `src/api/registration-match.test.ts` (create) | Unit tests, no DB, no network |
-| `src/api/invoice-scan.ts` (modify) | Export `stripFences` for reuse |
+| `src/api/vision.ts` (create) | Shared image upload + OpenRouter vision call |
+| `src/api/invoice-scan.ts` (modify) | Export `stripFences`; move onto the shared helper |
 | `src/api/registration-scan.ts` (create) | HTTP handler: auth, image, OpenRouter, DB lookup, response |
 | `src/api/registration-scan.test.ts` (create) | Parser + guard + handler auth/config tests |
 | `src/index.ts` (modify) | Route registration |
@@ -785,16 +787,26 @@ git commit -m "feat: add registration document prompt and strict response parser
 
 ---
 
-### Task 4: The endpoint
+### Task 4: The endpoint, on a shared OpenRouter helper
+
+Both scanners run the same pipeline — image upload, vision model, strict JSON —
+and differ only in prompt, model and parser. Rather than copy that plumbing,
+this task extracts it into `src/api/vision.ts` and moves the existing invoice
+scanner onto it. `src/api/invoice-scan.test.ts` covers the invoice scanner's
+pure functions and must keep passing unchanged.
 
 **Files:**
+- Create: `src/api/vision.ts`
+- Modify: `src/api/invoice-scan.ts` (use the shared helper)
 - Modify: `src/api/registration-scan.ts` (append the handler)
 - Modify: `src/index.ts` (register the route)
 - Test: `src/api/registration-scan.test.ts` (append handler tests)
 
 **Interfaces:**
 - Consumes: `matchVehicles`, `matchCustomers`, `decideAutoSelect`, `VehicleWithCustomer` from `./registration-match`; `requireAuth`, `validateCsrf` from `./auth`; `getDB` from `../db`
-- Produces: `scanRegistration(req: Request): Promise<Response>`
+- Produces:
+  - `src/api/vision.ts`: `VisionMessage`, `readImageUpload(req: Request): Promise<{ ok: true; dataUrl: string } | { ok: false; response: Response }>`, `callOpenRouterVision(apiKey: string, model: string, messages: VisionMessage[]): Promise<{ ok: true; content: string } | { ok: false; response: Response }>`
+  - `scanRegistration(req: Request): Promise<Response>`
 
 - [ ] **Step 1: Write the failing tests**
 
@@ -858,7 +870,154 @@ test("scanRegistration returns 503 when the API key is missing", async () => {
 Run: `bun test src/api/registration-scan.test.ts`
 Expected: FAIL — `scanRegistration is not a function`.
 
-- [ ] **Step 3: Append the handler**
+- [ ] **Step 3: Extract the shared vision helper**
+
+Create `src/api/vision.ts`:
+
+```ts
+// Shared plumbing for image -> vision model -> text scans.
+// The invoice scanner and the registration scanner run the same pipeline and
+// differ only in prompt, model and parser.
+
+const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
+const MAX_BYTES = 8 * 1024 * 1024; // 8MB
+const TIMEOUT_MS = 45_000;
+
+export interface VisionMessage {
+  role: "system" | "user";
+  content:
+    | string
+    | Array<{ type: "text"; text: string } | { type: "image_url"; image_url: { url: string } }>;
+}
+
+export type ImageUpload =
+  | { ok: true; dataUrl: string }
+  | { ok: false; response: Response };
+
+export async function readImageUpload(req: Request): Promise<ImageUpload> {
+  const invalid = () => ({
+    ok: false as const,
+    response: Response.json({ message: "Slika nije validna" }, { status: 400 }),
+  });
+
+  let formData: FormData;
+  try {
+    formData = await req.formData();
+  } catch {
+    return invalid();
+  }
+
+  const file = formData.get("file");
+  if (!(file instanceof File) || !file.type.startsWith("image/")) return invalid();
+  if (file.size > MAX_BYTES) {
+    return {
+      ok: false,
+      response: Response.json({ message: "Slika je prevelika (max 8MB)" }, { status: 400 }),
+    };
+  }
+
+  const bytes = new Uint8Array(await file.arrayBuffer());
+  return { ok: true, dataUrl: `data:${file.type};base64,${Buffer.from(bytes).toString("base64")}` };
+}
+
+export type VisionResult =
+  | { ok: true; content: string }
+  | { ok: false; response: Response };
+
+export async function callOpenRouterVision(
+  apiKey: string,
+  model: string,
+  messages: VisionMessage[]
+): Promise<VisionResult> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
+
+  let res: Response;
+  try {
+    res = await fetch(OPENROUTER_URL, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ model, messages, response_format: { type: "json_object" } }),
+      signal: controller.signal,
+    });
+  } catch (err) {
+    if ((err as Error).name === "AbortError") {
+      return {
+        ok: false,
+        response: Response.json({ message: "Vrijeme za obradu isteklo" }, { status: 504 }),
+      };
+    }
+    return {
+      ok: false,
+      response: Response.json({ message: "OpenRouter nedostupan" }, { status: 502 }),
+    };
+  } finally {
+    clearTimeout(timer);
+  }
+
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    console.error(`OpenRouter HTTP ${res.status}:`, text.slice(0, 500));
+    return {
+      ok: false,
+      response: Response.json({ message: "OpenRouter greška" }, { status: 502 }),
+    };
+  }
+
+  const json = (await res.json()) as { choices?: Array<{ message?: { content?: string } }> };
+  const content = json.choices?.[0]?.message?.content;
+  if (!content) {
+    return {
+      ok: false,
+      response: Response.json({ message: "Model nije vratio sadržaj" }, { status: 422 }),
+    };
+  }
+  return { ok: true, content };
+}
+```
+
+- [ ] **Step 4: Move the invoice scanner onto the helper**
+
+In `src/api/invoice-scan.ts`:
+
+Delete the `OPENROUTER_URL`, `TIMEOUT_MS` and `MAX_BYTES` constants (keep `MODEL`).
+
+Delete the local `OcrMessage` interface (the one you exported in Task 3) and import the shared type instead. Add at the top:
+
+```ts
+import { callOpenRouterVision, readImageUpload, type VisionMessage } from "./vision";
+```
+
+Change `buildOcrMessages`'s return type from `OcrMessage[]` to `VisionMessage[]`. Its body does not change.
+
+Replace everything in `scanInvoice` from `let formData: FormData;` down to and including the `if (!content) { ... }` block with:
+
+```ts
+  const upload = await readImageUpload(req);
+  if (!upload.ok) return upload.response;
+
+  const vision = await callOpenRouterVision(apiKey, MODEL, buildOcrMessages(upload.dataUrl));
+  if (!vision.ok) return vision.response;
+  const content = vision.content;
+```
+
+The auth/CSRF/apiKey block above it and the `parseModelResponse` block below it stay exactly as they are.
+
+Run `bun test src/api/invoice-scan.test.ts` — it must still pass, unchanged.
+
+In `src/api/registration-scan.ts`, update the Task 3 import to take the message type from the new module:
+
+```ts
+import { stripFences } from "./invoice-scan";
+import type { VisionMessage } from "./vision";
+```
+
+and change `buildRegistrationMessages`'s return type from `OcrMessage[]` to `VisionMessage[]`.
+
+- [ ] **Step 5: Append the handler**
 
 Add these imports at the top of `src/api/registration-scan.ts`:
 
@@ -866,6 +1025,7 @@ Add these imports at the top of `src/api/registration-scan.ts`:
 import type { Customer, ScanRegistrationResponse, Vehicle } from "../types";
 import { getDB } from "../db";
 import { requireAuth, validateCsrf } from "./auth";
+import { callOpenRouterVision, readImageUpload } from "./vision";
 import {
   decideAutoSelect,
   matchCustomers,
@@ -879,10 +1039,7 @@ import {
 Append to the end of the file:
 
 ```ts
-const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
 const MODEL = "google/gemini-3.5-flash";
-const TIMEOUT_MS = 45_000;
-const MAX_BYTES = 8 * 1024 * 1024; // 8MB
 
 interface VehicleRow extends Vehicle {
   c_id: number | null;
@@ -925,62 +1082,12 @@ export async function scanRegistration(req: Request): Promise<Response> {
     return Response.json({ message: "Servis nije konfigurisan" }, { status: 503 });
   }
 
-  let formData: FormData;
-  try {
-    formData = await req.formData();
-  } catch {
-    return Response.json({ message: "Slika nije validna" }, { status: 400 });
-  }
+  const upload = await readImageUpload(req);
+  if (!upload.ok) return upload.response;
 
-  const file = formData.get("file");
-  if (!(file instanceof File) || !file.type.startsWith("image/")) {
-    return Response.json({ message: "Slika nije validna" }, { status: 400 });
-  }
-  if (file.size > MAX_BYTES) {
-    return Response.json({ message: "Slika je prevelika (max 8MB)" }, { status: 400 });
-  }
-
-  const bytes = new Uint8Array(await file.arrayBuffer());
-  const dataUrl = `data:${file.type};base64,${Buffer.from(bytes).toString("base64")}`;
-
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
-
-  let openrouterRes: Response;
-  try {
-    openrouterRes = await fetch(OPENROUTER_URL, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: MODEL,
-        messages: buildRegistrationMessages(dataUrl),
-        response_format: { type: "json_object" },
-      }),
-      signal: controller.signal,
-    });
-  } catch (err) {
-    clearTimeout(timer);
-    if ((err as Error).name === "AbortError") {
-      return Response.json({ message: "Vrijeme za obradu isteklo" }, { status: 504 });
-    }
-    return Response.json({ message: "OpenRouter nedostupan" }, { status: 502 });
-  }
-  clearTimeout(timer);
-
-  if (!openrouterRes.ok) {
-    const text = await openrouterRes.text().catch(() => "");
-    console.error(`OpenRouter HTTP ${openrouterRes.status}:`, text.slice(0, 500));
-    return Response.json({ message: "OpenRouter greška" }, { status: 502 });
-  }
-
-  const json = (await openrouterRes.json()) as { choices?: Array<{ message?: { content?: string } }> };
-  const content = json.choices?.[0]?.message?.content;
-  if (!content) {
-    return Response.json({ message: "Model nije vratio sadržaj" }, { status: 422 });
-  }
+  const vision = await callOpenRouterVision(apiKey, MODEL, buildRegistrationMessages(upload.dataUrl));
+  if (!vision.ok) return vision.response;
+  const content = vision.content;
 
   let document: ScannedRegistration;
   let warnings: string[];
@@ -1020,12 +1127,12 @@ export async function scanRegistration(req: Request): Promise<Response> {
 }
 ```
 
-- [ ] **Step 4: Run tests to verify they pass**
+- [ ] **Step 6: Run tests to verify they pass**
 
 Run: `bun test src/api/registration-scan.test.ts`
 Expected: PASS, 9 tests. No network is touched — both handler tests return before the OpenRouter call.
 
-- [ ] **Step 5: Register the route**
+- [ ] **Step 7: Register the route**
 
 In `src/index.ts`, add the import next to the other API imports:
 
@@ -1041,16 +1148,16 @@ And inside the routes object, add this **above** every `"/api/vehicles/:id..."` 
     },
 ```
 
-- [ ] **Step 6: Run the whole suite and typecheck**
+- [ ] **Step 8: Run the whole suite and typecheck**
 
 Run: `bun test && bunx tsc --noEmit 2>&1 | grep -v '^build.ts' | head`
-Expected: all tests pass; no typecheck output.
+Expected: all tests pass — including `invoice-scan.test.ts`, unchanged. No typecheck output.
 
-- [ ] **Step 7: Commit**
+- [ ] **Step 9: Commit**
 
 ```bash
-git add src/api/registration-scan.ts src/api/registration-scan.test.ts src/index.ts
-git commit -m "feat: add POST /api/vehicles/scan-registration endpoint"
+git add src/api/vision.ts src/api/invoice-scan.ts src/api/registration-scan.ts src/api/registration-scan.test.ts src/index.ts
+git commit -m "feat: add scan-registration endpoint on a shared vision helper"
 ```
 
 ---
