@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "bun --hot src/index.ts",
     "start": "NODE_ENV=production bun src/index.ts",
-    "build": "bun run build.ts"
+    "build": "bun run build.ts",
+    "create-admin": "bun src/scripts/create-admin.ts"
   },
   "dependencies": {
     "@radix-ui/react-dialog": "^1.1.15",
