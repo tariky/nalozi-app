@@ -53,6 +53,7 @@ import {
 } from "./api/work-orders";
 
 import { scanInvoice } from "./api/invoice-scan";
+import { scanRegistration } from "./api/registration-scan";
 
 import {
   getSalesAnalytics,
@@ -113,6 +114,9 @@ const server = serve({
     // Vehicles API
     "/api/vehicles": {
       POST: createVehicle,
+    },
+    "/api/vehicles/scan-registration": {
+      POST: scanRegistration,
     },
     "/api/vehicles/check-vin/:vin": {
       GET: checkVin,

@@ -67,3 +67,54 @@ test("buildRegistrationMessages embeds the image and forbids the address", () =>
   const text = JSON.stringify(messages);
   expect(text).toContain("address");
 });
+
+import { beforeEach } from "bun:test";
+import { getDB, closeDB } from "../db";
+import { scanRegistration } from "./registration-scan";
+
+process.env.DB_PATH = ":memory:";
+
+let adminSession: string;
+let adminCsrf: string;
+
+function scanReq(opts?: { session?: string | null }): Request {
+  const headers: Record<string, string> = {};
+  if (opts?.session !== null) headers["Cookie"] = `session=${opts?.session ?? adminSession}`;
+  headers["X-CSRF-Token"] = adminCsrf;
+  return new Request("http://localhost/api/vehicles/scan-registration", { method: "POST", headers });
+}
+
+beforeEach(() => {
+  closeDB();
+  const db = getDB();
+  db.exec("DELETE FROM sessions");
+  db.exec("DELETE FROM users");
+
+  const expires = new Date(Date.now() + 86400000).toISOString();
+  const admin = db
+    .query<{ id: number }, [string, string, string]>(
+      "INSERT INTO users (username, password_hash, role) VALUES (?, ?, ?) RETURNING id"
+    )
+    .get("admin", "fake", "admin")!;
+  adminSession = "admin-session";
+  adminCsrf = "admin-csrf";
+  db.query<null, [string, number, string, string]>(
+    "INSERT INTO sessions (id, user_id, expires_at, csrf_token) VALUES (?, ?, ?, ?)"
+  ).run(adminSession, admin.id, expires, adminCsrf);
+});
+
+test("scanRegistration requires authentication", async () => {
+  const res = await scanRegistration(scanReq({ session: null }));
+  expect(res.status).toBe(401);
+});
+
+test("scanRegistration returns 503 when the API key is missing", async () => {
+  const saved = process.env.OPENROUTER_API_KEY;
+  delete process.env.OPENROUTER_API_KEY;
+  try {
+    const res = await scanRegistration(scanReq());
+    expect(res.status).toBe(503);
+  } finally {
+    if (saved !== undefined) process.env.OPENROUTER_API_KEY = saved;
+  }
+});

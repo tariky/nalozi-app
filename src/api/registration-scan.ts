@@ -1,5 +1,14 @@
-import type { ScannedRegistration } from "../types";
-import { stripFences, type OcrMessage } from "./invoice-scan";
+import type { Customer, ScanRegistrationResponse, ScannedRegistration, Vehicle } from "../types";
+import { stripFences } from "./invoice-scan";
+import { callOpenRouterVision, readImageUpload, type VisionMessage } from "./vision";
+import { getDB } from "../db";
+import { requireAuth, validateCsrf } from "./auth";
+import {
+  decideAutoSelect,
+  matchCustomers,
+  matchVehicles,
+  type VehicleWithCustomer,
+} from "./registration-match";
 
 const INSTRUCTIONS = [
   "Extract vehicle data from this vehicle registration document (Bosnian 'saobraćajna dozvola', an EU registration certificate).",
@@ -25,7 +34,7 @@ const INSTRUCTIONS = [
   "6. Append a short Bosnian note to 'warnings' for each field left null because the image was unclear.",
 ].join("\n");
 
-export function buildRegistrationMessages(dataUrl: string): OcrMessage[] {
+export function buildRegistrationMessages(dataUrl: string): VisionMessage[] {
   return [
     {
       role: "system",
@@ -90,4 +99,91 @@ export function parseRegistrationResponse(raw: string): {
 // Without a VIN and without plates there is nothing to search the database by.
 export function hasUsableIdentifier(doc: ScannedRegistration): boolean {
   return Boolean(doc.vin_broj || doc.registarske_tablice);
+}
+
+const MODEL = "google/gemini-3.5-flash";
+
+interface VehicleRow extends Vehicle {
+  c_id: number | null;
+  c_ime: string | null;
+  c_prezime: string | null;
+  c_telefon: string | null;
+}
+
+// The shop's database holds hundreds of rows, not millions. Fuzzy matching
+// cannot be pushed into SQL, so both tables are read in full and scored in JS.
+function loadVehicles(): VehicleWithCustomer[] {
+  const rows = getDB()
+    .query<VehicleRow, []>(
+      `SELECT v.*, c.id as c_id, c.ime as c_ime, c.prezime as c_prezime, c.telefon as c_telefon
+       FROM vehicles v
+       LEFT JOIN customers c ON v.customer_id = c.id`
+    )
+    .all();
+
+  return rows.map((row) => {
+    const { c_id, c_ime, c_prezime, c_telefon, ...vehicle } = row;
+    return {
+      ...vehicle,
+      customer:
+        c_id !== null
+          ? { id: c_id, ime: c_ime ?? "", prezime: c_prezime ?? "", telefon: c_telefon }
+          : null,
+    };
+  });
+}
+
+export async function scanRegistration(req: Request): Promise<Response> {
+  const authResult = requireAuth(req);
+  if (authResult instanceof Response) return authResult;
+  const csrfError = validateCsrf(req);
+  if (csrfError) return csrfError;
+
+  const apiKey = process.env.OPENROUTER_API_KEY;
+  if (!apiKey) {
+    return Response.json({ message: "Servis nije konfigurisan" }, { status: 503 });
+  }
+
+  const upload = await readImageUpload(req);
+  if (!upload.ok) return upload.response;
+
+  const vision = await callOpenRouterVision(apiKey, MODEL, buildRegistrationMessages(upload.dataUrl));
+  if (!vision.ok) return vision.response;
+  const content = vision.content;
+
+  let document: ScannedRegistration;
+  let warnings: string[];
+  try {
+    ({ document, warnings } = parseRegistrationResponse(content));
+  } catch (err) {
+    console.error("Registration parse error:", (err as Error).message, "raw:", content.slice(0, 500));
+    return Response.json(
+      { message: "Model nije vratio ispravan format. Pokušajte sa jasnijom slikom." },
+      { status: 422 }
+    );
+  }
+
+  if (!hasUsableIdentifier(document)) {
+    return Response.json(
+      { message: "Nije prepoznata saobraćajna, pokušajte sa jasnijom slikom" },
+      { status: 422 }
+    );
+  }
+
+  const db = getDB();
+  const vehicleMatch = matchVehicles(document, loadVehicles());
+  const customerCandidates = matchCustomers(
+    document.vlasnik,
+    db.query<Customer, []>("SELECT * FROM customers").all()
+  );
+  const auto = decideAutoSelect(document, vehicleMatch.candidates);
+
+  const payload: ScanRegistrationResponse = {
+    document,
+    vehicleCandidates: vehicleMatch.candidates,
+    customerCandidates,
+    autoSelect: { vehicleId: auto.vehicleId, customerId: auto.customerId },
+    warnings: [...warnings, ...vehicleMatch.warnings, ...auto.warnings],
+  };
+  return Response.json(payload);
 }
