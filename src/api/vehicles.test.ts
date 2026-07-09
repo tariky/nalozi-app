@@ -80,6 +80,17 @@ test("updateVehicle: 404 and unchanged row when customer_id does not exist", asy
   expect(row.customer_id).toBe(ownerId);
 });
 
+test("updateVehicle: 404 and unchanged row when customer_id is 0", async () => {
+  const res = await updateVehicle(req("PUT", `/api/vehicles/${vehicleId}`, { customer_id: 0 }));
+  expect(res.status).toBe(404);
+  const body = await res.json() as { message: string };
+  expect(body.message).toBe("Klijent nije pronađen");
+
+  const db = getDB();
+  const row = db.query<Vehicle, [number]>("SELECT * FROM vehicles WHERE id = ?").get(vehicleId)!;
+  expect(row.customer_id).toBe(ownerId);
+});
+
 test("updateVehicle: omitting customer_id leaves the owner unchanged", async () => {
   const res = await updateVehicle(req("PUT", `/api/vehicles/${vehicleId}`, { motor: "1.9 TDI" }));
   expect(res.status).toBe(200);

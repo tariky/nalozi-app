@@ -150,7 +150,7 @@ export async function updateVehicle(req: Request): Promise<Response> {
     return Response.json({ message: 'Vozilo nije pronađeno' }, { status: 404 });
   }
 
-  if (data.customer_id) {
+  if (data.customer_id !== undefined) {
     const customer = db.query<{ id: number }, [number]>(
       'SELECT id FROM customers WHERE id = ?'
     ).get(data.customer_id);
