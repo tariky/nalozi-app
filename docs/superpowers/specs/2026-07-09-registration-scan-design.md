@@ -54,6 +54,8 @@ Time najčešća OCR zamjena nestaje prije poređenja. Zatim se odbacuje sve osi
 
 Nakon kanonizacije: egzaktno poklapanje daje `vin_exact`. Levenshtein razdaljina ≤ 2 daje `vin_near` — kandidat koji se **nudi**, ne bira.
 
+Kad korisnik prihvati `vin_near` kandidata, VIN iz baze **ostaje kakav jest** — ne prepisujemo ga onim sa slike. Skener ne mijenja podatke koje korisnik nije tražio da mijenja. Ispravka pogrešno prekucanog VIN-a ide kroz uređivanje vozila, svjesno.
+
 ### Tablice
 
 Rezerva kad VIN nije čitljiv. Velika slova, uklonjene crtice i razmaci: `A12-B-345` → `A12B345`. Poklapanje daje `plates`.
