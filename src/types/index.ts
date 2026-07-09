@@ -183,6 +183,29 @@ export interface AuthUser {
   mechanic?: Mechanic;
 }
 
+// Company settings types
+export interface CompanySettings {
+  id: number;
+  naziv: string | null;
+  telefon: string | null;
+  email: string | null;
+  adresa: string | null;
+  id_broj: string | null;
+  web: string | null;
+  logo: string | null; // data-URI (base64) or null
+  updated_at: string;
+}
+
+export interface CompanySettingsForm {
+  naziv?: string;
+  telefon?: string;
+  email?: string;
+  adresa?: string;
+  id_broj?: string;
+  web?: string;
+  logo?: string | null;
+}
+
 // Analytics types
 export interface SalesData {
   datum: string;
@@ -232,4 +255,25 @@ export interface ScanInvoiceResponse {
 
 export interface BulkItemsRequest {
   items: WorkOrderItemForm[];
+}
+
+// Public service history (QR) types
+export interface PublicServiceVisitItem {
+  tip: 'dio' | 'usluga';
+  naziv: string;
+  kolicina: number;
+}
+
+export interface PublicServiceVisit {
+  datum: string;
+  kilometraza: number | null;
+  opis_kvara: string | null;
+  mehanicar: string | null;
+  items: PublicServiceVisitItem[];
+}
+
+export interface PublicServiceHistoryData {
+  company: { naziv: string | null; logo: string | null };
+  vehicle: { marka_vozila: string; model_vozila: string; registarske_tablice: string };
+  visits: PublicServiceVisit[];
 }

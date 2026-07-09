@@ -9,8 +9,11 @@ import { CustomerDetail } from "@/components/customers/CustomerDetail";
 import { MechanicList } from "@/components/mechanics/MechanicList";
 import { Dashboard } from "@/components/analytics/Dashboard";
 import { UserList } from "@/components/users/UserList";
+import { CompanySettings } from "@/components/settings/CompanySettings";
 import { LoginPage } from "@/components/auth/LoginPage";
+import { PublicServiceHistory } from "@/components/public/PublicServiceHistory";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
+import { CompanySettingsProvider, useCompanySettings } from "@/contexts/CompanySettingsContext";
 import { generateWorkOrderPDF } from "@/components/pdf/WorkOrderPDF";
 import { workOrdersApi } from "@/lib/api";
 import type { WorkOrder } from "@/types";
@@ -26,10 +29,12 @@ type Page =
   | "customers-detail"
   | "mechanics"
   | "analytics"
-  | "users";
+  | "users"
+  | "settings";
 
 function AppContent() {
   const { user, loading, isAdmin, isMechanic } = useAuth();
+  const { settings: companySettings } = useCompanySettings();
   const [page, setPage] = useState<Page>("work-orders");
   const [selectedWorkOrderId, setSelectedWorkOrderId] = useState<number | null>(null);
   const [selectedCustomerId, setSelectedCustomerId] = useState<number | null>(null);
@@ -103,10 +108,10 @@ function AppContent() {
     if (!workOrder.items || !workOrder.customer) {
       const result = await workOrdersApi.getById(workOrder.id);
       if (result.success && result.data) {
-        await generateWorkOrderPDF(result.data);
+        await generateWorkOrderPDF(result.data, companySettings);
       }
     } else {
-      await generateWorkOrderPDF(workOrder);
+      await generateWorkOrderPDF(workOrder, companySettings);
     }
   };
 
@@ -213,6 +218,14 @@ function AppContent() {
         }
         return <UserList />;
 
+      case "settings":
+        // Only admin can access company settings
+        if (!isAdmin) {
+          navigate("work-orders");
+          return null;
+        }
+        return <CompanySettings />;
+
       default:
         return null;
     }
@@ -247,9 +260,17 @@ function AppContent() {
 }
 
 export function App() {
+  // Public QR page: real path /s/:token, bypasses auth + hash routing entirely
+  if (typeof window !== "undefined" && window.location.pathname.startsWith("/s/")) {
+    const token = window.location.pathname.slice(3).replace(/\/$/, "");
+    return <PublicServiceHistory token={token} />;
+  }
+
   return (
     <AuthProvider>
-      <AppContent />
+      <CompanySettingsProvider>
+        <AppContent />
+      </CompanySettingsProvider>
     </AuthProvider>
   );
 }

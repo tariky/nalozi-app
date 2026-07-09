@@ -107,6 +107,30 @@ CREATE TABLE IF NOT EXISTS sessions (
   FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
+-- Company settings (single-row table, id is always 1)
+CREATE TABLE IF NOT EXISTS company_settings (
+  id INTEGER PRIMARY KEY CHECK (id = 1),
+  naziv TEXT,
+  telefon TEXT,
+  email TEXT,
+  adresa TEXT,
+  id_broj TEXT,
+  web TEXT,
+  logo TEXT,
+  updated_at TEXT DEFAULT (datetime('now'))
+);
+
+-- Ensure the single settings row always exists so GET returns an object
+INSERT OR IGNORE INTO company_settings (id) VALUES (1);
+
+-- Public QR tokens for vehicle service history (one token per vehicle)
+CREATE TABLE IF NOT EXISTS vehicle_public_tokens (
+  token TEXT PRIMARY KEY,
+  vehicle_id INTEGER NOT NULL UNIQUE,
+  created_at TEXT DEFAULT (datetime('now')),
+  FOREIGN KEY (vehicle_id) REFERENCES vehicles(id)
+);
+
 -- Indexes for search optimization
 CREATE INDEX IF NOT EXISTS idx_time_entries_work_order ON time_entries(work_order_id);
 CREATE INDEX IF NOT EXISTS idx_work_orders_vin ON work_orders(vin_broj);
@@ -116,6 +140,7 @@ CREATE INDEX IF NOT EXISTS idx_work_orders_created ON work_orders(created_at);
 CREATE INDEX IF NOT EXISTS idx_work_order_items_type ON work_order_items(tip);
 CREATE INDEX IF NOT EXISTS idx_customers_name ON customers(ime, prezime);
 CREATE INDEX IF NOT EXISTS idx_vehicles_customer ON vehicles(customer_id);
+CREATE INDEX IF NOT EXISTS idx_vehicle_tokens_vehicle ON vehicle_public_tokens(vehicle_id);
 CREATE INDEX IF NOT EXISTS idx_users_username ON users(username);
 CREATE INDEX IF NOT EXISTS idx_sessions_user ON sessions(user_id);
 CREATE INDEX IF NOT EXISTS idx_sessions_expires ON sessions(expires_at);

@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
-import { ArrowLeft, Pencil, FileText, Eye } from "lucide-react";
+import { ArrowLeft, Pencil, FileText, Eye, QrCode, Car } from "lucide-react";
+import QRCode from "qrcode";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -11,9 +12,11 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
-import { customersApi, workOrdersApi } from "@/lib/api";
+import { customersApi, workOrdersApi, vehiclesApi } from "@/lib/api";
+import { generateVehicleQRPDF } from "@/components/pdf/VehicleQRPDF";
+import { useCompanySettings } from "@/contexts/CompanySettingsContext";
 import { formatDate, formatCurrency, getStatusLabel, getStatusColor } from "@/lib/formatters";
-import type { Customer, WorkOrder } from "@/types";
+import type { Customer, WorkOrder, Vehicle } from "@/types";
 
 interface CustomerDetailProps {
   customerId: number;
@@ -31,6 +34,33 @@ export function CustomerDetail({
   const [customer, setCustomer] = useState<Customer | null>(null);
   const [workOrders, setWorkOrders] = useState<WorkOrder[]>([]);
   const [loading, setLoading] = useState(true);
+  const { settings: companySettings } = useCompanySettings();
+  const [vehicles, setVehicles] = useState<Vehicle[]>([]);
+  const [printingId, setPrintingId] = useState<number | null>(null);
+
+  useEffect(() => {
+    vehiclesApi.getByCustomer(customerId).then((res) => {
+      if (res.success && res.data) setVehicles(res.data);
+    });
+  }, [customerId]);
+
+  const handlePrintQR = async (vehicle: Vehicle) => {
+    setPrintingId(vehicle.id);
+    try {
+      const res = await vehiclesApi.createPublicToken(vehicle.id);
+      if (!res.success || !res.data) {
+        alert(res.error || "Greška pri generisanju QR koda");
+        return;
+      }
+      const url = `${window.location.origin}/s/${res.data.token}`;
+      const qrDataUrl = await QRCode.toDataURL(url, { width: 400, margin: 1 });
+      await generateVehicleQRPDF(vehicle, companySettings, qrDataUrl, url);
+    } catch {
+      alert("Greška pri generisanju QR kartice");
+    } finally {
+      setPrintingId(null);
+    }
+  };
 
   useEffect(() => {
     const loadData = async () => {
@@ -145,6 +175,37 @@ export function CustomerDetail({
           </div>
         </div>
       </div>
+
+      {/* Vehicles */}
+      {vehicles.length > 0 && (
+        <div>
+          <h2 className="text-lg font-medium text-foreground flex items-center gap-2 mb-4">
+            <Car className="h-5 w-5" />
+            Vozila ({vehicles.length})
+          </h2>
+          <div className="divide-y">
+            {vehicles.map((v) => (
+              <div key={v.id} className="flex items-center justify-between py-3 gap-4">
+                <div>
+                  <div className="font-medium">{v.marka_vozila} {v.model_vozila}</div>
+                  <div className="text-sm text-muted-foreground font-mono">
+                    {v.registarske_tablice}
+                  </div>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={printingId === v.id}
+                  onClick={() => handlePrintQR(v)}
+                >
+                  <QrCode className="h-4 w-4 mr-2" />
+                  {printingId === v.id ? "Generisanje..." : "Printaj QR karticu"}
+                </Button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Work Orders */}
       <div className="bg-card rounded-none border border-border overflow-hidden">
