@@ -277,3 +277,41 @@ export interface PublicServiceHistoryData {
   vehicle: { marka_vozila: string; model_vozila: string; registarske_tablice: string };
   visits: PublicServiceVisit[];
 }
+
+// Registration document scan (saobraćajna) types
+export interface ScannedRegistration {
+  marka_vozila: string | null;
+  model_vozila: string | null;
+  registarske_tablice: string | null;
+  vin_broj: string | null;
+  motor: string | null;
+  vlasnik: { ime: string | null; prezime: string | null };
+}
+
+export type VehicleMatchKind = 'vin_exact' | 'vin_near' | 'plates';
+
+export interface VehicleCandidateCustomer {
+  id: number;
+  ime: string;
+  prezime: string;
+  telefon: string | null;
+}
+
+export interface VehicleCandidate {
+  vehicle: Vehicle;
+  customer: VehicleCandidateCustomer | null;
+  match: VehicleMatchKind;
+}
+
+export interface CustomerCandidate {
+  customer: Customer;
+  score: number;
+}
+
+export interface ScanRegistrationResponse {
+  document: ScannedRegistration;
+  vehicleCandidates: VehicleCandidate[];
+  customerCandidates: CustomerCandidate[];
+  autoSelect: { vehicleId: number | null; customerId: number | null };
+  warnings: string[];
+}
