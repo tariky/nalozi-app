@@ -64,7 +64,7 @@ export function LoginPage() {
           <div>
             <img
               src={logoSrc}
-              alt="AS-NORD"
+              alt="AutoNalog"
               className="h-14 w-auto invert opacity-90"
             />
           </div>
@@ -83,7 +83,7 @@ export function LoginPage() {
 
           {/* Footer */}
           <div className="flex items-center gap-8 text-background/30 text-sm">
-            <span>© 2026 AS-NORD</span>
+            <span>© 2026 AutoNalog</span>
             <span>•</span>
             <span>v1.0.0</span>
           </div>
@@ -102,7 +102,7 @@ export function LoginPage() {
           <div className="lg:hidden mb-12 text-center">
             <img
               src={logoSrc}
-              alt="AS-NORD"
+              alt="AutoNalog"
               className="h-12 w-auto mx-auto mb-4"
             />
             <p className="text-muted-foreground text-sm">

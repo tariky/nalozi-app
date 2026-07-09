@@ -447,7 +447,7 @@ function WorkOrderPDFDocument({ workOrder, company }: WorkOrderPDFDocumentProps)
 
         {/* Footer */}
         <Text style={styles.footer}>
-          AS-NORD Nalozi | Ovaj dokument je automatski generisan
+          AutoNalog | Ovaj dokument je automatski generisan
         </Text>
       </Page>
     </Document>

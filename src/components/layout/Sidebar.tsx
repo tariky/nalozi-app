@@ -61,7 +61,7 @@ export function Sidebar({ currentPage, onNavigate, userRole = "admin" }: Sidebar
       <div className="h-16 flex items-start pt-2 justify-start border-b border-sidebar-border px-3">
         <img
           src={logoSrc}
-          alt="AS-NORD"
+          alt="AutoNalog"
           className={cn(
             "h-12 w-auto transition-all duration-200",
             collapsed && "h-8"

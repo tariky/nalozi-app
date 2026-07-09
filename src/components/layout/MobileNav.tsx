@@ -93,7 +93,7 @@ export function MobileNav({ currentPage, onNavigate, userRole = "admin" }: Mobil
     <>
       {/* Mobile Header */}
       <header className="md:hidden fixed top-0 left-0 right-0 h-14 bg-background border-b border-border z-40 flex items-center justify-between px-4">
-        <img src={logoSrc} alt="AS-NORD" className="h-10 w-auto" />
+        <img src={logoSrc} alt="AutoNalog" className="h-10 w-auto" />
 
         <button
           onClick={() => setMenuOpen(true)}
@@ -162,7 +162,7 @@ export function MobileNav({ currentPage, onNavigate, userRole = "admin" }: Mobil
       >
         {/* Menu Header */}
         <div className="h-14 border-b border-border flex items-center justify-between px-4">
-          <img src={logoSrc} alt="AS-NORD" className="h-10 w-auto" />
+          <img src={logoSrc} alt="AutoNalog" className="h-10 w-auto" />
 
           <button
             onClick={() => setMenuOpen(false)}
