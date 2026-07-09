@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Plus, Eye, Pencil, FileDown, ChevronLeft, ChevronRight, Clock } from "lucide-react";
+import { Plus, Eye, Pencil, FileDown, ChevronLeft, ChevronRight, Clock, ScanLine } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -21,10 +21,11 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Card, PageHeader } from "@/components/layout/PageContainer";
 import { WorkOrderSearch } from "./WorkOrderSearch";
 import { SalesOverview } from "@/components/analytics/SalesOverview";
+import { RegistrationScanDialog } from "@/components/vehicles/RegistrationScanDialog";
 import { workOrdersApi } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatDate, formatCurrency, getStatusLabel, getStatusColor, formatDuration, getTipNalogaLabel, getTipAgregataLabel } from "@/lib/formatters";
-import type { WorkOrder, PaginatedResponse } from "@/types";
+import type { WorkOrder, PaginatedResponse, Vehicle } from "@/types";
 
 interface WorkOrderListProps {
   onNewAuto: () => void;
@@ -32,6 +33,7 @@ interface WorkOrderListProps {
   onView: (id: number) => void;
   onEdit: (id: number) => void;
   onPrintPDF: (workOrder: WorkOrder) => void;
+  onScanned: (customerId: number, vehicle: Vehicle) => void;
 }
 
 // Cache work orders to prevent flicker on navigation
@@ -50,11 +52,12 @@ export function invalidateWorkOrdersCache() {
   workOrdersCache = null;
 }
 
-export function WorkOrderList({ onNewAuto, onNewAgregat, onView, onEdit, onPrintPDF }: WorkOrderListProps) {
+export function WorkOrderList({ onNewAuto, onNewAgregat, onView, onEdit, onPrintPDF, onScanned }: WorkOrderListProps) {
   const { isAdmin } = useAuth();
   const [page, setPage] = useState(1);
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [tipFilter, setTipFilter] = useState<'all' | 'auto' | 'agregat'>('all');
+  const [scanOpen, setScanOpen] = useState(false);
 
   // Initialize from cache if valid
   const getCachedData = () => {
@@ -123,6 +126,10 @@ export function WorkOrderList({ onNewAuto, onNewAgregat, onView, onEdit, onPrint
         description="Upravljajte radnim nalozima auto servisa"
         action={
           <div className="grid grid-cols-2 gap-2 w-full sm:flex sm:w-auto">
+            <Button onClick={() => setScanOpen(true)} size="sm" variant="outline" className="w-full sm:w-auto">
+              <ScanLine className="h-4 w-4 mr-2" />
+              Skeniraj saobraćajnu
+            </Button>
             <Button onClick={onNewAuto} size="sm" className="w-full sm:w-auto">
               <Plus className="h-4 w-4 mr-1" />
               <span className="truncate">Auto nalog</span>
@@ -369,6 +376,12 @@ export function WorkOrderList({ onNewAuto, onNewAgregat, onView, onEdit, onPrint
           </>
         )}
       </Card>
+
+      <RegistrationScanDialog
+        open={scanOpen}
+        onOpenChange={setScanOpen}
+        onResolved={onScanned}
+      />
     </div>
   );
 }

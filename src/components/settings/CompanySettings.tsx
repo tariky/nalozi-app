@@ -160,7 +160,7 @@ export function CompanySettings() {
                 id="naziv"
                 value={form.naziv}
                 onChange={(e) => setForm({ ...form, naziv: e.target.value })}
-                placeholder="npr. AS-NORD d.o.o."
+                placeholder="npr. Auto Servis d.o.o."
               />
             </div>
 

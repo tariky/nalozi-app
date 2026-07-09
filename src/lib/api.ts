@@ -19,6 +19,7 @@ import type {
   AuthUser,
   UserForm,
   ScanInvoiceResponse,
+  ScanRegistrationResponse,
   CompanySettings,
   CompanySettingsForm,
 } from '../types';
@@ -267,6 +268,39 @@ export const invoiceScanApi = {
       }
 
       const data = await response.json() as ScanInvoiceResponse;
+      return { success: true, data };
+    } catch {
+      return { success: false, error: 'Greška u komunikaciji sa serverom' };
+    }
+  },
+};
+
+// Registration document scan (multipart upload — same reason as invoiceScanApi)
+export const registrationScanApi = {
+  scan: async (
+    file: File
+  ): Promise<{ success: true; data: ScanRegistrationResponse } | { success: false; error: string }> => {
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const headers: Record<string, string> = {};
+      if (csrfToken) {
+        headers['X-CSRF-Token'] = csrfToken;
+      }
+
+      const response = await fetch(`${API_BASE}/vehicles/scan-registration`, {
+        method: 'POST',
+        headers,
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({ message: 'Greška na serveru' }));
+        return { success: false, error: error.message || 'Greška na serveru' };
+      }
+
+      const data = await response.json() as ScanRegistrationResponse;
       return { success: true, data };
     } catch {
       return { success: false, error: 'Greška u komunikaciji sa serverom' };

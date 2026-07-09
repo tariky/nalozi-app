@@ -41,7 +41,7 @@ export function TopNav({ currentPage, onNavigate, userRole = "admin" }: TopNavPr
 
   const navItems = allNavItems.filter((item) => item.roles.includes(userRole));
   const logoImg = settings?.logo || logoSrc;
-  const companyName = settings?.naziv || "AS-NORD";
+  const companyName = settings?.naziv || "AutoNalog";
 
   const handleNavigate = (page: string) => {
     onNavigate(page);

@@ -69,7 +69,7 @@ function VehicleQRDocument({ vehicle, company, qrDataUrl, url }: VehicleQRDocume
         </Text>
         <Text style={styles.url}>{url}</Text>
 
-        <Text style={styles.footer}>AS-NORD Nalozi | Automatski generisano</Text>
+        <Text style={styles.footer}>AutoNalog | Automatski generisano</Text>
       </Page>
     </Document>
   );

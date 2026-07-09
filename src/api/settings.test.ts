@@ -78,25 +78,25 @@ test("getCompanySettings: requires authentication", async () => {
 
 test("updateCompanySettings: admin saves and returns updated values", async () => {
   const res = await updateCompanySettings(makeRequest("PUT", "/api/settings/company", {
-    naziv: "AS-NORD d.o.o.",
+    naziv: "Auto Servis d.o.o.",
     telefon: "+387 61 123 456",
-    email: "info@asnord.ba",
+    email: "info@autoservis.ba",
     adresa: "Ulica 1, Sarajevo",
     id_broj: "4200000000001",
-    web: "https://asnord.ba",
+    web: "https://autoservis.ba",
     logo: "data:image/png;base64,AAAA",
   }));
   expect(res.status).toBe(200);
   const body = await res.json() as { naziv: string; telefon: string; logo: string };
-  expect(body.naziv).toBe("AS-NORD d.o.o.");
+  expect(body.naziv).toBe("Auto Servis d.o.o.");
   expect(body.telefon).toBe("+387 61 123 456");
   expect(body.logo).toBe("data:image/png;base64,AAAA");
 
   // Persisted: a fresh GET reflects the change
   const getRes = getCompanySettings(makeRequest("GET", "/api/settings/company"));
   const getBody = await getRes.json() as { naziv: string; email: string };
-  expect(getBody.naziv).toBe("AS-NORD d.o.o.");
-  expect(getBody.email).toBe("info@asnord.ba");
+  expect(getBody.naziv).toBe("Auto Servis d.o.o.");
+  expect(getBody.email).toBe("info@autoservis.ba");
 });
 
 test("updateCompanySettings: clears logo when null is sent", async () => {

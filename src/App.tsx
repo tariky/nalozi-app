@@ -16,7 +16,7 @@ import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { CompanySettingsProvider, useCompanySettings } from "@/contexts/CompanySettingsContext";
 import { generateWorkOrderPDF } from "@/components/pdf/WorkOrderPDF";
 import { workOrdersApi } from "@/lib/api";
-import type { WorkOrder } from "@/types";
+import type { WorkOrder, Vehicle } from "@/types";
 import "./index.css";
 
 type Page =
@@ -39,11 +39,14 @@ function AppContent() {
   const [selectedWorkOrderId, setSelectedWorkOrderId] = useState<number | null>(null);
   const [selectedCustomerId, setSelectedCustomerId] = useState<number | null>(null);
   const [editTipNaloga, setEditTipNaloga] = useState<'auto' | 'agregat' | null>(null);
+  const [scanPrefill, setScanPrefill] = useState<{ customerId: number; vehicle: Vehicle } | null>(null);
 
   // Handle browser back/forward
   useEffect(() => {
     const handleHash = () => {
       const hash = window.location.hash.slice(1) || "work-orders";
+      const isNewAuto = hash === "work-orders/new/auto" || hash === "work-orders/new";
+      if (!isNewAuto) setScanPrefill(null);
       const [mainPage, subPage, id] = hash.split("/");
 
       if (mainPage === "work-orders" && subPage === "new" && id === "auto") {
@@ -125,12 +128,18 @@ function AppContent() {
             onView={(id) => navigate(`work-orders/view/${id}`)}
             onEdit={(id) => navigate(`work-orders/edit/${id}`)}
             onPrintPDF={handlePrintPDF}
+            onScanned={(customerId, vehicle) => {
+              setScanPrefill({ customerId, vehicle });
+              navigate("work-orders/new/auto");
+            }}
           />
         );
 
       case "work-orders-new-auto":
         return (
           <WorkOrderForm
+            key={scanPrefill ? `scan-${scanPrefill.vehicle.id}` : "blank"}
+            prefill={scanPrefill ?? undefined}
             onBack={() => navigate("work-orders")}
             onSaved={(workOrder) => navigate(`work-orders/view/${workOrder.id}`)}
           />

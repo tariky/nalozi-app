@@ -1,6 +1,6 @@
 {
-  "name": "AS-NORD Nalozi",
-  "short_name": "AS-NORD",
+  "name": "AutoNalog",
+  "short_name": "AutoNalog",
   "description": "Aplikacija za upravljanje radnim nalozima auto servisa",
   "start_url": "/",
   "display": "standalone",

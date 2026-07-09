@@ -20,18 +20,19 @@ import type { WorkOrder, WorkOrderFormAuto, Mechanic, Customer, Vehicle } from "
 
 interface WorkOrderFormProps {
   workOrderId?: number;
+  prefill?: { customerId: number; vehicle: Vehicle };
   onBack: () => void;
   onSaved: (workOrder: WorkOrder) => void;
 }
 
-export function WorkOrderForm({ workOrderId, onBack, onSaved }: WorkOrderFormProps) {
+export function WorkOrderForm({ workOrderId, prefill, onBack, onSaved }: WorkOrderFormProps) {
   const { user, isAdmin, isMechanic } = useAuth();
   const [mechanics, setMechanics] = useState<Mechanic[]>([]);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [selectedCustomerId, setSelectedCustomerId] = useState<number | null>(null);
-  const [selectedVehicleId, setSelectedVehicleId] = useState<number | undefined>(undefined);
+  const [selectedCustomerId, setSelectedCustomerId] = useState<number | null>(prefill?.customerId ?? null);
+  const [selectedVehicleId, setSelectedVehicleId] = useState<number | undefined>(prefill?.vehicle.id);
   const [vinWarning, setVinWarning] = useState<{ message: string; vehicle?: Vehicle & { customer?: { id: number; ime: string; prezime: string } } } | null>(null);
   const [checkingVin, setCheckingVin] = useState(false);
 
@@ -40,12 +41,12 @@ export function WorkOrderForm({ workOrderId, onBack, onSaved }: WorkOrderFormPro
 
   const [formData, setFormData] = useState<WorkOrderFormAuto>({
     tip_naloga: 'auto',
-    customer_id: 0,
-    registarske_tablice: "",
-    vin_broj: "",
-    marka_vozila: "",
-    model_vozila: "",
-    motor: "",
+    customer_id: prefill?.customerId ?? 0,
+    registarske_tablice: prefill?.vehicle.registarske_tablice ?? "",
+    vin_broj: prefill?.vehicle.vin_broj ?? "",
+    marka_vozila: prefill?.vehicle.marka_vozila ?? "",
+    model_vozila: prefill?.vehicle.model_vozila ?? "",
+    motor: prefill?.vehicle.motor ?? "",
     kilometraza: undefined,
     mechanic_id: initialMechanicId,
     opis_kvara: "",
