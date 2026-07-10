@@ -79,7 +79,6 @@ export function validateVin(raw: unknown): { vin: string | null; valid: boolean 
 }
 
 export interface HarmonisedCode {
-  /** The code as printed on the certificate. */
   code: string;
   /** The key the model must use in its JSON reply. Dots are illegal in a bare key. */
   key: string;

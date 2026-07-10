@@ -5,7 +5,7 @@ import {
   buildRegistrationMessages,
   personName,
 } from "./registration-scan";
-import { HARMONISED_CODES } from "./eu-codes";
+import { renderCodeTable } from "./eu-codes";
 
 test("parses a clean JSON response", () => {
   const raw = JSON.stringify({
@@ -63,14 +63,20 @@ test("hasUsableIdentifier requires a VIN or plates", () => {
   expect(hasUsableIdentifier(platesOnly)).toBe(true);
 });
 
-test("buildRegistrationMessages embeds the image and names every code it reads", () => {
+test("buildRegistrationMessages embeds the image and the rendered code table", () => {
   const messages = buildRegistrationMessages("data:image/png;base64,AAA");
   expect(messages.length).toBe(2);
-  const parts = messages[1]!.content as Array<{ type: string }>;
+  const parts = messages[1]!.content as Array<{ type: string; text?: string }>;
   expect(parts.some((p) => p.type === "image_url")).toBe(true);
 
-  const text = JSON.stringify(messages);
-  for (const { code } of HARMONISED_CODES) expect(text).toContain(code);
+  const textPart = parts.find((p) => p.type === "text");
+  expect(textPart).toBeDefined();
+  // Prove the prompt embeds the actual rendered table verbatim, not just that
+  // it happens to mention every code somewhere (some codes also appear inside
+  // the JSON shape or the rule prose, which would pass even if the table were
+  // dropped entirely).
+  expect(textPart!.text).toContain(renderCodeTable());
+  expect(textPart!.text).toContain("1999/37/EC");
 });
 
 test("the prompt forbids the address codes and warns about place names", () => {
