@@ -21,8 +21,16 @@ const INSTRUCTIONS = [
   "  E     = VIN / chassis number",
   "  P.1   = engine displacement in cm3",
   "  P.3   = fuel type",
-  "  C.1.1 = owner surname",
-  "  C.1.2 = owner given name",
+  "  C.1.1 = owner surname (prezime)",
+  "  C.1.2 = owner given name (ime)",
+  "  C.1.3 = owner ADDRESS — never a name",
+  "",
+  "The personal-data block (C / LIČNI PODACI) always runs in this fixed order:",
+  "  line 1  C.1.1  surname      e.g. ČAPLJA",
+  "  line 2  C.1.2  given name   e.g. TARIK",
+  "  line 3  C.1.3  address      e.g. MRKOTIĆ 180  /  MRKOTIĆ, TEŠANJ",
+  "The address usually wraps onto two lines (street + house number, then settlement, municipality).",
+  "It may be followed by a 13-digit personal number (JMBG) and a role word such as VLASNIK or KORISNIK.",
   "",
   "Rules:",
   "1. Output STRICT JSON with this exact shape, no markdown, no prose:",
@@ -32,6 +40,18 @@ const INSTRUCTIONS = [
   "4. Never output the owner's address, ID number, or any field not listed above.",
   "5. A VIN is 17 characters on modern documents and never contains the letters I, O or Q.",
   "6. Append a short Bosnian note to 'warnings' for each field left null because the image was unclear.",
+  "",
+  "CRITICAL — do not put the address into the name. This is the most common error:",
+  "7. 'prezime' is ONLY the C.1.1 line, 'ime' is ONLY the C.1.2 line. The third line is the address, never a name.",
+  "8. Bosnian settlement and municipality names look exactly like surnames — many end in -ić, -ci, -nj",
+  "   (Mrkotić, Tešanj, Gračanica, Doboj, Lukavac). A word ending in -ić on the address line is still a place.",
+  "9. A line is the ADDRESS, not a name, if any of these hold: it contains a digit or house number;",
+  "   it contains a comma separating two words; it repeats a word from another address line;",
+  "   it sits below the given-name line. Discard such lines entirely.",
+  "10. 'ime' and 'prezime' are exactly one word each. Never join two words, and never output a role word",
+  "    (VLASNIK, KORISNIK, SUVLASNIK) or a number as a name.",
+  "11. If the photo is rotated, blurred, or you cannot anchor a line to its C.1.1 / C.1.2 label with certainty,",
+  "    set BOTH 'ime' and 'prezime' to null and warn. A missing name is correct; an address in 'prezime' is not.",
 ].join("\n");
 
 export function buildRegistrationMessages(dataUrl: string): VisionMessage[] {
@@ -39,7 +59,9 @@ export function buildRegistrationMessages(dataUrl: string): VisionMessage[] {
     {
       role: "system",
       content:
-        "You are an OCR parser for Bosnian vehicle registration documents. Extract the vehicle fields and the owner's name only. Return strict JSON only.",
+        "You are an OCR parser for Bosnian vehicle registration documents. Extract the vehicle fields and the owner's name only. " +
+        "The owner's address sits directly below the name and its words look like surnames — never let it reach 'ime' or 'prezime'. " +
+        "Return strict JSON only.",
     },
     {
       role: "user",
@@ -55,6 +77,19 @@ function str(value: unknown): string | null {
   if (typeof value !== "string") return null;
   const trimmed = value.trim();
   return trimmed === "" ? null : trimmed;
+}
+
+// The model is told never to copy the C.1.3 address line into a name, but a
+// prompt is a request, not a guarantee. These shapes can only come from the
+// address line or the role column, never from a person's name, so drop them.
+const ROLE_WORDS = new Set(["VLASNIK", "KORISNIK", "SUVLASNIK"]);
+
+export function personName(value: unknown): string | null {
+  const name = str(value);
+  if (!name) return null;
+  if (/[\d,]/.test(name)) return null;
+  if (ROLE_WORDS.has(name.toUpperCase())) return null;
+  return name;
 }
 
 export function parseRegistrationResponse(raw: string): {
@@ -86,7 +121,7 @@ export function parseRegistrationResponse(raw: string): {
     registarske_tablice: str(obj.registarske_tablice),
     vin_broj: str(obj.vin_broj),
     motor: str(obj.motor),
-    vlasnik: { ime: str(vlasnikRaw.ime), prezime: str(vlasnikRaw.prezime) },
+    vlasnik: { ime: personName(vlasnikRaw.ime), prezime: personName(vlasnikRaw.prezime) },
   };
 
   const warnings = Array.isArray(obj.warnings)
