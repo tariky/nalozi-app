@@ -28,6 +28,8 @@ const dataUrl = `data:image/jpeg;base64,${Buffer.from(bytes).toString("base64")}
 
 // The vision model is nondeterministic; run several times and print every
 // result verbatim so a single bad read doesn't hide behind a lucky rerun.
+let parsed = 0;
+let failed = 0;
 for (let i = 0; i < 3; i++) {
   const res = await callOpenRouterVision(
     apiKey,
@@ -36,8 +38,31 @@ for (let i = 0; i < 3; i++) {
   );
   if (!res.ok) {
     console.log(`run ${i + 1}: HTTP`, res.response.status);
+    failed++;
     continue;
   }
-  const { document, warnings } = parseRegistrationResponse(res.content);
-  console.log(`run ${i + 1}:`, JSON.stringify(document), warnings);
+  try {
+    const { document, warnings } = parseRegistrationResponse(res.content);
+    console.log(`run ${i + 1}:`, JSON.stringify(document), warnings);
+    parsed++;
+  } catch (err) {
+    // Vision model occasionally returns content that is not valid JSON.
+    // Print the run, error, and raw response excerpt so the bad reply can be
+    // inspected and debugged — don't retry or silently swallow it.
+    const preview = res.content.substring(0, 200);
+    console.log(
+      `run ${i + 1}: parse error`,
+      err instanceof Error ? err.message : String(err)
+    );
+    console.log(`  raw content (first 200 chars): ${preview}`);
+    failed++;
+  }
+}
+
+// Report summary. Exit non-zero only if no runs succeeded, making this usable
+// as a smoke test. Mixed success/failure (some runs parsed, some did not) means
+// the model is flaky but the script fulfilled its purpose: gathering evidence.
+console.log(`\nsummary: ${parsed} parsed, ${failed} failed`);
+if (parsed === 0) {
+  process.exit(1);
 }
