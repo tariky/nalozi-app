@@ -14,7 +14,12 @@ const MAX_CM3 = 10_000;
 export function formatDisplacement(cm3: unknown): string | null {
   if (typeof cm3 !== "number" || !Number.isFinite(cm3)) return null;
   if (cm3 < MIN_CM3 || cm3 > MAX_CM3) return null;
-  return (cm3 / 1000).toFixed(1);
+  // (cm3 / 1000).toFixed(1) looks correct but isn't: dividing by 1000 first can
+  // land on a binary fraction just below the true .x5 boundary (e.g. 1150/1000
+  // is stored as 1.149999...99), so toFixed(1) rounds down instead of up.
+  // Rounding to the nearest integer tenth-of-litre before the final divide
+  // keeps the value on an exact halfway point until toFixed does the rounding.
+  return (Math.round(cm3 / 100) / 10).toFixed(1);
 }
 
 // P.3 is printed in the language of the issuing state. The shop only ever wants
@@ -33,10 +38,19 @@ for (const [bosnian, aliases] of Object.entries(FUEL_ALIASES)) {
   for (const alias of aliases) FUEL_LOOKUP.set(alias, bosnian);
 }
 
+// A vision model reports an illegible or blank P.3 field with a placeholder
+// rather than leaving it empty. Most of these (e.g. "---", "-", ".") already
+// normalize to the empty string once punctuation is stripped, but "N/A" keeps
+// its letters ("N A") and "nepoznato" is a whole word, so they need an
+// explicit entry here to be told apart from a real, if unrecognised, fuel.
+const PLACEHOLDER_KEYS = new Set(["N A", "NEPOZNATO"]);
+
 export function normalizeFuel(raw: unknown): { fuel: string | null; unknown: boolean } {
   if (typeof raw !== "string" || raw.trim() === "") return { fuel: null, unknown: false };
 
   const key = normalizeName(raw);
+  if (key === "" || PLACEHOLDER_KEYS.has(key)) return { fuel: null, unknown: false };
+
   const known = FUEL_LOOKUP.get(key);
   if (known) return { fuel: known, unknown: false };
 

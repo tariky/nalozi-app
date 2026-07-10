@@ -8,6 +8,14 @@ test("formatDisplacement turns cm3 into a litre label", () => {
   expect(formatDisplacement(999)).toBe("1.0");
 });
 
+test("formatDisplacement rounds the half-tenth boundary correctly", () => {
+  // Naive (cm3 / 1000).toFixed(1) mis-rounds these because the division
+  // introduces IEEE-754 error before toFixed ever sees the value.
+  expect(formatDisplacement(1150)).toBe("1.2");
+  expect(formatDisplacement(1450)).toBe("1.5");
+  expect(formatDisplacement(1950)).toBe("2.0");
+});
+
 test("formatDisplacement rejects impossible or non-numeric values", () => {
   expect(formatDisplacement(99)).toBe(null);      // below 200 cm3
   expect(formatDisplacement(50000)).toBe(null);   // above 10000 cm3
@@ -37,6 +45,13 @@ test("normalizeFuel treats missing input as absent, not unknown", () => {
   expect(normalizeFuel(null)).toEqual({ fuel: null, unknown: false });
   expect(normalizeFuel("   ")).toEqual({ fuel: null, unknown: false });
   expect(normalizeFuel(42)).toEqual({ fuel: null, unknown: false });
+});
+
+test("normalizeFuel treats an illegible or blank P.3 field as absent, not unknown", () => {
+  expect(normalizeFuel("N/A")).toEqual({ fuel: null, unknown: false });
+  expect(normalizeFuel("---")).toEqual({ fuel: null, unknown: false });
+  expect(normalizeFuel("-")).toEqual({ fuel: null, unknown: false });
+  expect(normalizeFuel("nepoznato")).toEqual({ fuel: null, unknown: false });
 });
 
 test("buildMotor joins only the parts it has", () => {
