@@ -5,6 +5,7 @@ import {
   buildRegistrationMessages,
   personName,
 } from "./registration-scan";
+import { HARMONISED_CODES } from "./eu-codes";
 
 test("parses a clean JSON response", () => {
   const raw = JSON.stringify({
@@ -62,22 +63,21 @@ test("hasUsableIdentifier requires a VIN or plates", () => {
   expect(hasUsableIdentifier(platesOnly)).toBe(true);
 });
 
-test("buildRegistrationMessages embeds the image and forbids the address", () => {
+test("buildRegistrationMessages embeds the image and names every code it reads", () => {
   const messages = buildRegistrationMessages("data:image/png;base64,AAA");
   expect(messages.length).toBe(2);
-  const content = messages[1]!.content;
-  expect(Array.isArray(content)).toBe(true);
-  const parts = content as Array<{ type: string }>;
+  const parts = messages[1]!.content as Array<{ type: string }>;
   expect(parts.some((p) => p.type === "image_url")).toBe(true);
+
   const text = JSON.stringify(messages);
-  expect(text).toContain("address");
+  for (const { code } of HARMONISED_CODES) expect(text).toContain(code);
 });
 
-test("the prompt warns that the C.1.3 address line is not a name", () => {
+test("the prompt forbids the address codes and warns about place names", () => {
   const text = JSON.stringify(buildRegistrationMessages("data:image/png;base64,AAA"));
   expect(text).toContain("C.1.3");
-  // The trap: Bosnian place names are shaped like surnames.
-  expect(text).toContain("-ić");
+  expect(text).toContain("-ić"); // the trap: Bosnian place names look like surnames
+  expect(text).toContain("1999/37/EC");
 });
 
 test("an address line never survives as a name", () => {

@@ -1,5 +1,6 @@
 import { test, expect } from "bun:test";
 import { formatDisplacement, normalizeFuel, buildMotor, validateVin } from "./eu-codes";
+import { HARMONISED_CODES, FORBIDDEN_CODES, renderCodeTable } from "./eu-codes";
 
 test("formatDisplacement turns cm3 into a litre label", () => {
   expect(formatDisplacement(1968)).toBe("2.0");
@@ -74,4 +75,28 @@ test("validateVin rejects I, O, Q and wrong lengths without repairing them", () 
   expect(validateVin("TMBLF93T1F905088")).toEqual({ vin: null, valid: false });  // 16 chars
   expect(validateVin("")).toEqual({ vin: null, valid: false });
   expect(validateVin(null)).toEqual({ vin: null, valid: false });
+});
+
+test("the code table carries the codes the scanner reads", () => {
+  const codes = HARMONISED_CODES.map((c) => c.code);
+  expect(codes).toEqual(["A", "D.1", "D.2", "D.3", "E", "P.1", "P.3", "C.1.1", "C.1.2", "C.2"]);
+});
+
+test("every code maps to a distinct JSON key", () => {
+  const keys = HARMONISED_CODES.map((c) => c.key);
+  expect(new Set(keys).size).toBe(keys.length);
+});
+
+test("the address codes are listed as forbidden, never as readable", () => {
+  const forbidden = FORBIDDEN_CODES.map((c) => c.code);
+  expect(forbidden).toContain("C.1.3");
+  expect(HARMONISED_CODES.some((c) => c.code === "C.1.3")).toBe(false);
+});
+
+test("renderCodeTable prints every code with its JSON key", () => {
+  const table = renderCodeTable();
+  for (const { code, key } of HARMONISED_CODES) {
+    expect(table).toContain(code);
+    expect(table).toContain(`"${key}"`);
+  }
 });

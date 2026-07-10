@@ -9,49 +9,40 @@ import {
   matchVehicles,
   type VehicleWithCustomer,
 } from "./registration-match";
+import { renderCodeTable } from "./eu-codes";
+
+const JSON_SHAPE =
+  '{"A":string|null,"D1":string|null,"D2":string|null,"D3":string|null,"E":string|null,' +
+  '"P1":number|null,"P3":string|null,"C11":string|null,"C12":string|null,' +
+  '"C2":{"ime":string|null,"prezime":string|null}|null,' +
+  '"kodovi_vidljivi":boolean,"warnings":string[]}';
 
 const INSTRUCTIONS = [
-  "Extract vehicle data from this vehicle registration document (Bosnian 'saobraćajna dozvola', an EU registration certificate).",
+  "Extract data from this vehicle registration certificate.",
+  "It follows EU Directive 1999/37/EC, which harmonises the FIELD CODES but NOT their position on the page.",
+  "Find every value by its printed code. Never infer a value from where it sits on the paper.",
   "",
-  "EU field codes, when the document shows them:",
-  "  A     = registration plates",
-  "  D.1   = make",
-  "  D.2   = type / model",
-  "  D.3   = commercial description (often the model name)",
-  "  E     = VIN / chassis number",
-  "  P.1   = engine displacement in cm3",
-  "  P.3   = fuel type",
-  "  C.1.1 = owner surname (prezime)",
-  "  C.1.2 = owner given name (ime)",
-  "  C.1.3 = owner ADDRESS — never a name",
-  "",
-  "The personal-data block (C / LIČNI PODACI) always runs in this fixed order:",
-  "  line 1  C.1.1  surname      e.g. ČAPLJA",
-  "  line 2  C.1.2  given name   e.g. TARIK",
-  "  line 3  C.1.3  address      e.g. MRKOTIĆ 180  /  MRKOTIĆ, TEŠANJ",
-  "The address usually wraps onto two lines (street + house number, then settlement, municipality).",
-  "It may be followed by a 13-digit personal number (JMBG) and a role word such as VLASNIK or KORISNIK.",
+  renderCodeTable(),
   "",
   "Rules:",
   "1. Output STRICT JSON with this exact shape, no markdown, no prose:",
-  '   {"marka_vozila":string|null,"model_vozila":string|null,"registarske_tablice":string|null,"vin_broj":string|null,"motor":string|null,"vlasnik":{"ime":string|null,"prezime":string|null},"warnings":string[]}',
-  "2. Use null for any field you cannot read with confidence. Never guess.",
-  "3. 'motor' is a short label such as '2.0 TDI' or '1.6 benzin', built from displacement and fuel or commercial description. Use null if unclear.",
-  "4. Never output the owner's address, ID number, or any field not listed above.",
-  "5. A VIN is 17 characters on modern documents and never contains the letters I, O or Q.",
-  "6. Append a short Bosnian note to 'warnings' for each field left null because the image was unclear.",
-  "",
-  "CRITICAL — do not put the address into the name. This is the most common error:",
-  "7. 'prezime' is ONLY the C.1.1 line, 'ime' is ONLY the C.1.2 line. The third line is the address, never a name.",
-  "8. Bosnian settlement and municipality names look exactly like surnames — many end in -ić, -ci, -nj",
-  "   (Mrkotić, Tešanj, Gračanica, Doboj, Lukavac). A word ending in -ić on the address line is still a place.",
-  "9. A line is the ADDRESS, not a name, if any of these hold: it contains a digit or house number;",
-  "   it contains a comma separating two words; it repeats a word from another address line;",
-  "   it sits below the given-name line. Discard such lines entirely.",
-  "10. 'ime' and 'prezime' are exactly one word each. Never join two words, and never output a role word",
-  "    (VLASNIK, KORISNIK, SUVLASNIK) or a number as a name.",
-  "11. If the photo is rotated, blurred, or you cannot anchor a line to its C.1.1 / C.1.2 label with certainty,",
-  "    set BOTH 'ime' and 'prezime' to null and warn. A missing name is correct; an address in 'prezime' is not.",
+  `   ${JSON_SHAPE}`,
+  "2. Use null for any code that is absent or that you cannot read with confidence. Never guess.",
+  "3. A Member State may print its own national codes in brackets next to the harmonised ones. Ignore anything in brackets.",
+  "4. C.1.3 is the holder's ADDRESS and sits close to the name. Its words look like surnames — Bosnian",
+  "   settlements and municipalities end in -ić, -ci, -nj (Mrkotić, Tešanj, Gračanica, Doboj). A word ending",
+  "   in -ić on the address line is still a place. Never let it reach C11 or C12.",
+  "5. A value is an ADDRESS, not a name, if it contains a digit, or a comma between two words, or repeats a",
+  "   word from another address line. C11 and C12 are one word each, and never a role word (VLASNIK, KORISNIK).",
+  "6. E is a VIN: exactly 17 characters on modern documents, never containing the letters I, O or Q.",
+  "7. P1 must be a JSON number in cm3. P3 must be the fuel word exactly as printed — DIESEL, GAZOLE and",
+  "   HEAVY OIL are all valid answers. Do not translate it and do not combine P1 and P3 yourself.",
+  '8. Set "kodovi_vidljivi" to true only if the document actually prints the harmonised codes. If it does not',
+  "   (an old pre-2004 certificate, or a non-EU document), set it to false and read the Bosnian layout instead:",
+  "   surname on the first line of the personal-data block, given name on the second, address on the third.",
+  "9. If you cannot tie a line to its C.1.1 / C.1.2 code with certainty, set BOTH C11 and C12 to null and warn.",
+  "   A missing name is correct; an address in the surname is not.",
+  "10. Append a short Bosnian note to 'warnings' for each code left null because the image was unclear.",
 ].join("\n");
 
 export function buildRegistrationMessages(dataUrl: string): VisionMessage[] {
@@ -59,9 +50,10 @@ export function buildRegistrationMessages(dataUrl: string): VisionMessage[] {
     {
       role: "system",
       content:
-        "You are an OCR parser for Bosnian vehicle registration documents. Extract the vehicle fields and the owner's name only. " +
-        "The owner's address sits directly below the name and its words look like surnames — never let it reach 'ime' or 'prezime'. " +
-        "Return strict JSON only.",
+        "You are an OCR parser for EU vehicle registration certificates (Directive 1999/37/EC). " +
+        "Locate each field by its harmonised code, never by its position on the page. " +
+        "The holder's address (C.1.3) sits next to the name and its words look like surnames — it must never " +
+        "reach a name field. Return strict JSON only.",
     },
     {
       role: "user",

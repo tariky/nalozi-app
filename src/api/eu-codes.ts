@@ -77,3 +77,40 @@ export function validateVin(raw: unknown): { vin: string | null; valid: boolean 
   if (!VIN_RE.test(cleaned)) return { vin: null, valid: false };
   return { vin: cleaned, valid: true };
 }
+
+export interface HarmonisedCode {
+  /** The code as printed on the certificate. */
+  code: string;
+  /** The key the model must use in its JSON reply. Dots are illegal in a bare key. */
+  key: string;
+  meaning: string;
+}
+
+// Annex I lists A, B, C.1 (with subfields), D.1, D.2, D.3, E, F.1, G, K, P.1,
+// P.3 and S.1 as mandatory. C.2, C.3, C.4 and R are optional, which is why we
+// never depend on C.2 being present.
+export const HARMONISED_CODES: readonly HarmonisedCode[] = [
+  { code: "A", key: "A", meaning: "registration number (the plates)" },
+  { code: "D.1", key: "D1", meaning: "make, e.g. ŠKODA" },
+  { code: "D.2", key: "D2", meaning: "type / variant / version, an internal code such as 3T" },
+  { code: "D.3", key: "D3", meaning: "commercial description — this is the model name, e.g. SUPERB" },
+  { code: "E", key: "E", meaning: "vehicle identification number (VIN)" },
+  { code: "P.1", key: "P1", meaning: "engine capacity in cm3 — return a NUMBER, e.g. 1968, not a string" },
+  { code: "P.3", key: "P3", meaning: "type of fuel — copy it EXACTLY as printed, in its own language, do not translate" },
+  { code: "C.1.1", key: "C11", meaning: "surname or business name of the certificate holder" },
+  { code: "C.1.2", key: "C12", meaning: "other name(s) of the certificate holder" },
+  { code: "C.2", key: "C2", meaning: "the owner, ONLY if the document shows C.2 separately from C.1" },
+] as const;
+
+export const FORBIDDEN_CODES: readonly { code: string; meaning: string }[] = [
+  { code: "C.1.3", meaning: "address of the certificate holder" },
+  { code: "C.3", meaning: "address of a person authorised to use the vehicle" },
+] as const;
+
+export function renderCodeTable(): string {
+  const read = HARMONISED_CODES.map(
+    ({ code, key, meaning }) => `  ${code.padEnd(6)} -> "${key}"${" ".repeat(Math.max(1, 6 - key.length))}${meaning}`
+  );
+  const banned = FORBIDDEN_CODES.map(({ code, meaning }) => `  ${code.padEnd(6)} ${meaning} — NEVER output this`);
+  return ["Codes to read:", ...read, "", "Codes that must never reach the output:", ...banned].join("\n");
+}
