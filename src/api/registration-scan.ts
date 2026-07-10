@@ -136,11 +136,22 @@ export function parseRegistrationResponse(raw: string): {
   const owner = ownerName(obj.C2);
   if (owner) {
     const holderKey = normalizeName(`${holder.ime ?? ""} ${holder.prezime ?? ""}`);
-    const ownerKey = normalizeName(`${owner.ime ?? ""} ${owner.prezime ?? ""}`);
-    if (holderKey && ownerKey && holderKey !== ownerKey) {
-      const ownerLabel = `${owner.ime ?? ""} ${owner.prezime ?? ""}`.trim();
+    // Mirrors registration-match.ts's docFullName: a name pair can arrive in
+    // either field order, so a person only counts as "different" if neither
+    // order matches.
+    const ownerForward = normalizeName(`${owner.ime ?? ""} ${owner.prezime ?? ""}`);
+    const ownerReversed = normalizeName(`${owner.prezime ?? ""} ${owner.ime ?? ""}`);
+    const ownerLabel = `${owner.ime ?? ""} ${owner.prezime ?? ""}`.trim();
+    if (!holderKey) {
+      // C.1 is mandatory but was unreadable; C.2 still cannot substitute for
+      // it, but the only legible name on the document must not vanish silently.
       warnings.push(
-        `Vozilo je registrovano na ${holder.ime} ${holder.prezime}, a vlasnik je ${ownerLabel}. Provjerite na koga otvarate nalog.`
+        `Ime nosioca vozila (C.1) nije pročitano, ali dokument navodi vlasnika (C.2): ${ownerLabel}. Provjerite ručno prije otvaranja naloga.`
+      );
+    } else if (holderKey !== ownerForward && holderKey !== ownerReversed) {
+      const holderLabel = `${holder.ime ?? ""} ${holder.prezime ?? ""}`.trim();
+      warnings.push(
+        `Vozilo je registrovano na ${holderLabel}, a vlasnik je ${ownerLabel}. Provjerite na koga otvarate nalog.`
       );
     }
   }

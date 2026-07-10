@@ -81,6 +81,30 @@ test("C.2 equal to C.1 is not a warning", () => {
   expect(warnings).toEqual([]);
 });
 
+test("C.2 mismatch warning never prints the literal word null for a partial holder name", () => {
+  const raw = JSON.stringify({ ...FULL, C11: "Čaplja", C12: null, C2: { ime: "Amra", prezime: "Hodžić" } });
+  const { warnings } = parseRegistrationResponse(raw);
+  const warning = warnings.find((w) => w.includes("Amra Hodžić"));
+  expect(warning).toBeDefined();
+  expect(warning).not.toContain("null");
+  expect(warning).toContain("Čaplja");
+});
+
+test("C.2 with the holder's names swapped is the same person, not a mismatch", () => {
+  const raw = JSON.stringify({ ...FULL, C11: "Čaplja", C12: "Tarik", C2: { ime: "Čaplja", prezime: "Tarik" } });
+  const { warnings } = parseRegistrationResponse(raw);
+  expect(warnings).toEqual([]);
+});
+
+test("an unreadable holder with a readable C.2 owner keeps the holder null but warns naming the owner", () => {
+  const raw = JSON.stringify({ ...FULL, C11: null, C12: null, C2: { ime: "Amra", prezime: "Hodžić" } });
+  const { document, warnings } = parseRegistrationResponse(raw);
+  expect(document.vlasnik).toEqual({ ime: null, prezime: null }); // C.1 always wins, never substituted
+  expect(warnings.length).toBe(1);
+  expect(warnings[0]).toContain("Amra Hodžić");
+  expect(warnings[0]).toContain("nije pročitano");
+});
+
 test("an unrecognised fuel is kept and warned about", () => {
   const { document, warnings } = parseRegistrationResponse(JSON.stringify({ ...FULL, P3: "VODIK" }));
   expect(document.motor).toBe("2.0 vodik");
