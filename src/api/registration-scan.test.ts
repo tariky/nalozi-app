@@ -7,40 +7,97 @@ import {
 } from "./registration-scan";
 import { renderCodeTable } from "./eu-codes";
 
-test("parses a clean JSON response", () => {
-  const raw = JSON.stringify({
-    marka_vozila: "Volkswagen",
-    model_vozila: "Golf 7",
-    registarske_tablice: "A12-B-345",
-    vin_broj: "WVWZZZ1KZAW000001",
-    motor: "2.0 TDI",
-    vlasnik: { ime: "Marko", prezime: "Marić" },
-    warnings: [],
-  });
-  const { document, warnings } = parseRegistrationResponse(raw);
-  expect(document.marka_vozila).toBe("Volkswagen");
-  expect(document.vlasnik.prezime).toBe("Marić");
+const FULL = {
+  A: "E17-M-318",
+  D1: "ŠKODA",
+  D2: "3T",
+  D3: "SUPERB",
+  E: "TMBLF93T1F9050884",
+  P1: 1968,
+  P3: "DIESEL",
+  C11: "Čaplja",
+  C12: "Tarik",
+  C2: null,
+  kodovi_vidljivi: true,
+  warnings: [],
+};
+
+test("parses a coded reply and assembles motor deterministically", () => {
+  const { document, warnings } = parseRegistrationResponse(JSON.stringify(FULL));
+  expect(document.marka_vozila).toBe("ŠKODA");
+  expect(document.model_vozila).toBe("SUPERB"); // D.3 wins over D.2
+  expect(document.registarske_tablice).toBe("E17-M-318");
+  expect(document.vin_broj).toBe("TMBLF93T1F9050884");
+  expect(document.motor).toBe("2.0 dizel"); // 1968 cm3 + DIESEL
+  expect(document.vlasnik).toEqual({ ime: "Tarik", prezime: "Čaplja" });
   expect(warnings).toEqual([]);
 });
 
+test("a foreign fuel word yields the same motor string as the Bosnian one", () => {
+  const french = parseRegistrationResponse(JSON.stringify({ ...FULL, P3: "GAZOLE" }));
+  const german = parseRegistrationResponse(JSON.stringify({ ...FULL, P3: "DIESELKRAFTSTOFF" }));
+  expect(french.document.motor).toBe("2.0 dizel");
+  expect(german.document.motor).toBe("2.0 dizel");
+});
+
+test("model_vozila falls back to D.2 only when D.3 is absent", () => {
+  const { document } = parseRegistrationResponse(JSON.stringify({ ...FULL, D3: null }));
+  expect(document.model_vozila).toBe("3T");
+});
+
 test("strips markdown fences", () => {
-  const raw = '```json\n{"vin_broj":"X","vlasnik":{}}\n```';
+  const raw = "```json\n" + JSON.stringify(FULL) + "\n```";
   const { document } = parseRegistrationResponse(raw);
-  expect(document.vin_broj).toBe("X");
+  expect(document.vin_broj).toBe("TMBLF93T1F9050884");
+});
+
+test("an illegal VIN is dropped, not repaired, and warns", () => {
+  const raw = JSON.stringify({ ...FULL, E: "TMBLF93T1FO050884" }); // letter O
+  const { document, warnings } = parseRegistrationResponse(raw);
+  expect(document.vin_broj).toBe(null);
+  expect(warnings.some((w) => w.includes("VIN"))).toBe(true);
+});
+
+test("a missing VIN does not warn — only an unreadable one does", () => {
+  const { warnings } = parseRegistrationResponse(JSON.stringify({ ...FULL, E: null }));
+  expect(warnings.some((w) => w.includes("VIN"))).toBe(false);
+});
+
+test("a document without harmonised codes is flagged as unverified", () => {
+  const { warnings } = parseRegistrationResponse(JSON.stringify({ ...FULL, kodovi_vidljivi: false }));
+  expect(warnings.some((w) => w.includes("EU oznake"))).toBe(true);
+});
+
+test("C.2 different from C.1 keeps the holder and warns about the owner", () => {
+  const raw = JSON.stringify({ ...FULL, C2: { ime: "Amra", prezime: "Hodžić" } });
+  const { document, warnings } = parseRegistrationResponse(raw);
+  expect(document.vlasnik).toEqual({ ime: "Tarik", prezime: "Čaplja" }); // C.1 wins
+  expect(warnings.some((w) => w.includes("Amra Hodžić"))).toBe(true);
+});
+
+test("C.2 equal to C.1 is not a warning", () => {
+  const raw = JSON.stringify({ ...FULL, C2: { ime: "TARIK", prezime: "CAPLJA" } });
+  const { warnings } = parseRegistrationResponse(raw);
+  expect(warnings).toEqual([]);
+});
+
+test("an unrecognised fuel is kept and warned about", () => {
+  const { document, warnings } = parseRegistrationResponse(JSON.stringify({ ...FULL, P3: "VODIK" }));
+  expect(document.motor).toBe("2.0 vodik");
+  expect(warnings.some((w) => w.includes("gorivo") || w.includes("Gorivo"))).toBe(true);
 });
 
 test("turns missing, empty and non-string fields into null", () => {
-  const raw = JSON.stringify({ marka_vozila: "", model_vozila: 42, vin_broj: "  X  " });
+  const raw = JSON.stringify({ D1: "", D3: 42, P1: "1968", C11: null, C12: null });
   const { document } = parseRegistrationResponse(raw);
   expect(document.marka_vozila).toBe(null);
   expect(document.model_vozila).toBe(null);
-  expect(document.motor).toBe(null);
-  expect(document.vin_broj).toBe("X");
+  expect(document.motor).toBe(null); // P1 was a string, not a number
   expect(document.vlasnik).toEqual({ ime: null, prezime: null });
 });
 
-test("keeps only string warnings", () => {
-  const raw = JSON.stringify({ vlasnik: {}, warnings: ["nejasan VIN", 7, null] });
+test("keeps only string warnings from the model", () => {
+  const raw = JSON.stringify({ kodovi_vidljivi: true, warnings: ["nejasan VIN", 7, null] });
   const { warnings } = parseRegistrationResponse(raw);
   expect(warnings).toEqual(["nejasan VIN"]);
 });
@@ -51,14 +108,16 @@ test("rejects invalid JSON and non-objects", () => {
 });
 
 test("hasUsableIdentifier requires a VIN or plates", () => {
-  const empty = parseRegistrationResponse(JSON.stringify({ vlasnik: {} })).document;
+  const empty = parseRegistrationResponse(JSON.stringify({ kodovi_vidljivi: true })).document;
   expect(hasUsableIdentifier(empty)).toBe(false);
 
-  const vinOnly = parseRegistrationResponse(JSON.stringify({ vin_broj: "X", vlasnik: {} })).document;
+  const vinOnly = parseRegistrationResponse(
+    JSON.stringify({ E: "TMBLF93T1F9050884", kodovi_vidljivi: true })
+  ).document;
   expect(hasUsableIdentifier(vinOnly)).toBe(true);
 
   const platesOnly = parseRegistrationResponse(
-    JSON.stringify({ registarske_tablice: "A12-B-345", vlasnik: {} })
+    JSON.stringify({ A: "E17-M-318", kodovi_vidljivi: true })
   ).document;
   expect(hasUsableIdentifier(platesOnly)).toBe(true);
 });
@@ -87,13 +146,9 @@ test("the prompt forbids the address codes and warns about place names", () => {
 });
 
 test("an address line never survives as a name", () => {
-  const raw = JSON.stringify({
-    vin_broj: "WVWZZZ1KZAW000001",
-    vlasnik: { ime: "Tarik", prezime: "Mrkotić 180" },
-  });
+  const raw = JSON.stringify({ ...FULL, C11: "Mrkotić 180", C12: "Mrkotić, Tešanj" });
   const { document } = parseRegistrationResponse(raw);
-  expect(document.vlasnik.prezime).toBe(null);
-  expect(document.vlasnik.ime).toBe("Tarik");
+  expect(document.vlasnik).toEqual({ ime: null, prezime: null });
 });
 
 test("personName rejects addresses, roles and numbers but keeps real names", () => {

@@ -7,9 +7,10 @@ import {
   decideAutoSelect,
   matchCustomers,
   matchVehicles,
+  normalizeName,
   type VehicleWithCustomer,
 } from "./registration-match";
-import { renderCodeTable } from "./eu-codes";
+import { buildMotor, formatDisplacement, normalizeFuel, renderCodeTable, validateVin } from "./eu-codes";
 
 const JSON_SHAPE =
   '{"A":string|null,"D1":string|null,"D2":string|null,"D3":string|null,"E":string|null,' +
@@ -84,6 +85,17 @@ export function personName(value: unknown): string | null {
   return name;
 }
 
+const WARN_NO_CODES = "Dokument nema EU oznake polja; podaci su nepotvrđeni, provjerite ih.";
+const WARN_VIN = "VIN nije pouzdano pročitan, unesite ga ručno.";
+
+function ownerName(value: unknown): { ime: string | null; prezime: string | null } | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const obj = value as Record<string, unknown>;
+  const ime = personName(obj.ime);
+  const prezime = personName(obj.prezime);
+  return ime || prezime ? { ime, prezime } : null;
+}
+
 export function parseRegistrationResponse(raw: string): {
   document: ScannedRegistration;
   warnings: string[];
@@ -102,23 +114,49 @@ export function parseRegistrationResponse(raw: string): {
   }
   const obj = parsed as Record<string, unknown>;
 
-  const vlasnikRaw =
-    obj.vlasnik && typeof obj.vlasnik === "object" && !Array.isArray(obj.vlasnik)
-      ? (obj.vlasnik as Record<string, unknown>)
-      : {};
-
-  const document: ScannedRegistration = {
-    marka_vozila: str(obj.marka_vozila),
-    model_vozila: str(obj.model_vozila),
-    registarske_tablice: str(obj.registarske_tablice),
-    vin_broj: str(obj.vin_broj),
-    motor: str(obj.motor),
-    vlasnik: { ime: personName(vlasnikRaw.ime), prezime: personName(vlasnikRaw.prezime) },
-  };
-
   const warnings = Array.isArray(obj.warnings)
     ? obj.warnings.filter((w): w is string => typeof w === "string")
     : [];
+
+  // E: an illegal VIN is dropped. A VIN the document simply does not show is
+  // absent, not unreadable, so it earns no warning.
+  const rawVin = str(obj.E);
+  const { vin } = validateVin(rawVin);
+  if (rawVin && !vin) warnings.push(WARN_VIN);
+
+  // P.1 + P.3: the model reports them raw; the label is assembled here so the
+  // same car always produces the same string, whatever language the paper is in.
+  const { fuel, unknown: fuelUnknown } = normalizeFuel(obj.P3);
+  if (fuelUnknown) warnings.push(`Gorivo "${str(obj.P3)}" nije prepoznato.`);
+  const motor = buildMotor(formatDisplacement(obj.P1), fuel);
+
+  // C.1 is the certificate holder and is mandatory. C.2 is the owner and is
+  // optional, so it can only ever add a warning, never replace the holder.
+  const holder = { ime: personName(obj.C12), prezime: personName(obj.C11) };
+  const owner = ownerName(obj.C2);
+  if (owner) {
+    const holderKey = normalizeName(`${holder.ime ?? ""} ${holder.prezime ?? ""}`);
+    const ownerKey = normalizeName(`${owner.ime ?? ""} ${owner.prezime ?? ""}`);
+    if (holderKey && ownerKey && holderKey !== ownerKey) {
+      const ownerLabel = `${owner.ime ?? ""} ${owner.prezime ?? ""}`.trim();
+      warnings.push(
+        `Vozilo je registrovano na ${holder.ime} ${holder.prezime}, a vlasnik je ${ownerLabel}. Provjerite na koga otvarate nalog.`
+      );
+    }
+  }
+
+  if (obj.kodovi_vidljivi === false) warnings.push(WARN_NO_CODES);
+
+  const document: ScannedRegistration = {
+    marka_vozila: str(obj.D1),
+    // D.3 is the commercial description (SUPERB); D.2 is an internal type code
+    // (3T) that means nothing to a mechanic. Prefer D.3.
+    model_vozila: str(obj.D3) ?? str(obj.D2),
+    registarske_tablice: str(obj.A),
+    vin_broj: vin,
+    motor,
+    vlasnik: holder,
+  };
 
   return { document, warnings };
 }
